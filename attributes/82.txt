@@ -13,7 +13,7 @@ and trails (cont'd.)         (cont'd.)                                          
                                                     Multiple element   170   0401  Traffic circle
                                                     type                     0402  Cloverleaf or interchange
                                                                              0403  Toll gate, toll plaza or perimeter or
-                                                                             toll  plaza
+                                                                                   toll plaza
                                                                              0404  Weigh station
                                                                              0405  Nonstandard section of road
                                                                       *170   0600  Historical

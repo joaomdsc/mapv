@@ -1,5 +1,12 @@
 # concat.py -
 
+"""Concatenate all the individual attributes pages into a single csv file.
+
+Each individual file (73.txt to 92.txt) corresponds to a page in the DLG-3 data
+users guide. The columns in the files have been manually aligned, so this
+script can parse the files based on fixed positions.
+"""
+
 import os
 import re
 
