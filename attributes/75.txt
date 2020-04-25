@@ -1,0 +1,37 @@
+                                                                       MAJOR MINOR
+DATA CATEGORY                TYPE OF CODE           APPLICATION        CODE  CODE  DESCRIPTION
+Hypsography                  Parameter              Multiple element   02N   ----  Elevation in whole feet or
+(cont'd.)                                           types                          meters, right-justified
+                                                                       026   00--  Major category associated
+                                                                                   with a spot height, not at
+                                                                                   ground elevation.
+                                                                       029   00--  Coincident feature
+								       
+Hydrography                  Feature identification Nodes              050   0001  Upper origin of stream
+                                                                             0002  Upper origin of stream at water body
+                                                                             0003  Sink, channel no longer evident
+                                                                             0004  Stream entering water body
+                                                                             0005  Steam exiting water body
+	                     					       	    
+                                                    Areas              050   0100  Alkali flat
+                                                                             0101  Reservoir
+                                                                             0102  Covered reservoir
+                                                                             0103  Glacier or permanent snowfield
+                                                                             0104  Salt evaporator
+                                                                             0105  Inundation area
+                                                                             0106  Fish hatchery or farm
+                                                                             0107  Industrial water impoundment
+                                                                             0108  Area to be submerged
+                                                                             0109  Sewage disposal pond or
+                                                                                   filtration beds
+                                                                             0110  Tailings pond
+                                                                             0111  Marsh, wetland, swamp, bog
+                                                                             0112  Mangrove area
+                                                                             0113  Rice field
+                                                                             0114  Cranberry bog
+                                                                             0115  Flats (tidal, mud, sand, gravel)
+                                                                             0116  Bays, estuaries, gulfs, oceans, seas
+                                                                             0117  Shoal
+                                                                             0118  Soda evaporator
+                                                                             0119  Duck Pond
+                                                                             0120  Void area

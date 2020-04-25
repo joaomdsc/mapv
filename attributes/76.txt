@@ -1,0 +1,37 @@
+                                                                       MAJOR MINOR
+DATA CATEGORY                TYPE OF CODE           APPLICATION        CODE  CODE  DESCRIPTION
+Hydrography                  Feature identification Lines              050   0200  Shoreline
+(cont'd.)                    (cont'd.)                                       0201  Manmade shoreline
+                                                                             0202  Closure line
+                                                                             0203  Indefinite shoreline
+                                                                             0204  Apparent limit
+                                                                             0205  Outline of a Carolina bay
+                                                                             0206  Danger Curve
+                                                                             0207  Apparent shoreline
+                                                    Points             050   0300  Spring
+                                                                             0301  Non-flowing well
+                                                                             0302  Flowing well
+                                                                             0303  Riser
+                                                                             0304  Geyser
+                                                                             0305  Windmill
+                                                                             0306  Cistern
+                                                    Multiple element   050   0400  Rapids
+                                                    types                    0401  Falls
+                                                                             0402  Gravel pit or quarry filled with water
+                                                                             0403  Gaging station
+                                                                             0404  Pumping station
+                                                                             0405  Water intake
+                                                                             0406  Dam or weir
+                                                                             0407  Canal lock or sluice gate
+                                                                             0408  Spillway
+                                                                             0409  Gate (flood, tidal, head, check)
+                                                                             0410  Rock
+                                                                             0411  Crevasse
+                                                                             0412  Stream
+                                                                             0413  Braided stream
+                                                                             0414  Ditch or canal
+                                                                             0415  Aqueduct
+                                                                             0416  Flume
+                                                                             0417  Penstock
+                                                                             0418  Siphon
+                                                                             0419  Channel in water area

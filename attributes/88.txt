@@ -1,0 +1,32 @@
+                                                                       MAJOR MINOR
+DATA CATEGORY                TYPE OF CODE           APPLICATION        CODE  CODE  DESCRIPTION
+Transportation,              Feature identification Points             190   0300  Seaplane anchorage
+Pipelines, Trans-            (cont'd.)              (Degenerate lines)
+mission Lines,               
+Miscellaneous Trans-                                Multiple element   190   0400  Power station
+portation Features (cont'd.)                        types                    0401  Substation
+                                                                             0402  Hydroelectric Plant
+                                                                             0403  Landing strip, airport,
+                                                                                   perimeter of airport
+                                                                             0404  Heliport, perimeter of heliport
+                                                                             0405  Launch complex, perimeter of
+                                                                                   launch complex
+                                                                             0406  Pumping station (other than
+                                                                                   water)
+                                                                             0407  Seaplane ramp or landing area
+                                                                             0408  Measuring station
+
+                             Descriptive            Multiple element   190   0600  Underground
+                                                    types                    0601  Under construction
+                                                                             0602  Abandoned
+                                                                             0603  Above ground
+                                                                             0604  Labeled "closed"
+                                                                             0605  Unimproved, loose surface
+                                                                             0606  Submerged
+                                                                             0607  Nuclear
+                                                                       190   0000  Photorevised feature
+                             Parameters             Multiple element   193   0---  Angle of clockwise rotation
+                                                    types                          (nearest whole degree)
+                                                                       198   0000  Best estimate of position or
+                                                                                   classification
+                                                                       199   00--  Coincident feature

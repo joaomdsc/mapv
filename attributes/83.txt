@@ -1,0 +1,38 @@
+                                                                       MAJOR MINOR
+DATA CATEGORY                TYPE OF CODE           APPLICATION        CODE  CODE  DESCRIPTION
+Transportation, Roads,       Descriptive            Multiple element   170   0617  Business route
+and trails (cont'd.)         (cont'd.)              types (cont'd.)          0618  On drawbridge
+                                                                             0619  Spur
+                                                                             0620  Loop
+                                                                             0621  Connector
+                                                                             0622  Truck route
+                                                                             0650  Road width 46-55 feet, 0.025 inches
+                                                                                   at 1:24,000
+                                                                             0651  Road width 56-65 feet, 0.030 inches
+                                                                                   at 1:24,000
+                                                                             0652  Road width 66-75 feet, 0.035 inches
+                                                                                   at 1:24,000
+                                                                             0653  Road width 76-85 feet, 0.040 inches
+                                                                                   at 1:24,000
+                                                                             0654  Road width 86-95 feet, 0.045 inches
+                                                                                   at 1:24,000
+                                                                             0655  Road width 96-105 feet, 0.050 inches
+                                                                                   at 1:24,000
+                                                                             0656  Road width 106-115 feet, 0.055 inches
+                                                                                   at 1:24,000
+                                                                             0657  Road width 116-125 feet, 0.060 inches
+                                                                                   at 1:24,000
+                                                                             0658  Road width 126-135 feet, 0.065 inches
+                                                                                   at 1:24,000
+                                                                             0659  Road width 136-145 feet, 0.070 inches
+                                                                                   at 1:24,000
+		             		            		       		 
+                                                                       170   0000  Photorevised feature
+		             		            		       
+                             Parameter              Multiple element   171   ----  Number of lanes
+                                                    types              172   ----  Interstate route number
+                                                                       173   ----  U.S. route number
+                                                                       174   ----  State route number
+                                                                       175   ----  Reservation, park, or military route
+                                                                                   number
+                                                                       176   ----  County route

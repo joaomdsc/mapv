@@ -1,0 +1,5 @@
+numpy==1.18.3
+Pillow==7.1.1
+Pypubsub==4.0.3
+six==1.14.0
+wxPython==4.1.0

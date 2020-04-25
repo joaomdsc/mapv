@@ -1,0 +1,37 @@
+                                                                       MAJOR MINOR
+DATA CATEGORY                TYPE OF CODE           APPLICATION        CODE  CODE  DESCRIPTION
+Hydrography                  Parameter (cont'd.)    Multiple element   053   0---  Angle of clockwise rotation (nearest
+(cont'd.)                                           types (cont'd)                 whole degree)
+                                                                       055   ----  River mile, value in four spaces,
+                                                                                   right justified
+                                                                       058   0000  Best estimate of classification
+                                                                                   or position
+                                                                       059   00--  Coincident feature
+								       
+Boundaries                   Feature identification Nodes              090   0001  Monumented point on a boundary
+	                     					       
+                                                    Areas              090   0100  Civil township, district, precinct,
+                                                                                   or barrio
+                                                                             0101  Incorporated city, village, town,
+                                                                                   borough, or hamlet
+                                                                             0103  National park, monument, lakeshore,
+                                                                                   seashore, parkway, battlefield, or
+                                                                                   recreation area
+                                                                             0104  National forest or grassland
+                                                                             0105  National wildlife refuge, game
+                                                                                   preserve, or fish hatchery
+                                                                             0106  National scenic waterway, riverway,
+                                                                                   wild and scenic river, or
+                                                                                   wilderness area
+                                                                             0107  Indian reservation
+                                                                             0108  Military reservation
+                                                                             0110  Federal prison
+                                                                             0111  Miscellaneous Federal reservation
+                                                                             0129  Miscellaneous State reservation
+                                                                             0130  State park, recreation area
+                                                                                   arboretum, or lake
+                                                                             0131  State wildlife refuge, game preserve,
+                                                                                   or fish hatchery
+                                                                             0132  State forest or grassland
+                                                                             0133  State prison
+                                                                             0134  County game preserve

@@ -1,0 +1,39 @@
+                                                                       MAJOR MINOR
+DATA CATEGORY                TYPE OF CODE           APPLICATION        CODE  CODE  DESCRIPTION
+Hydrography                  Feature identification Multiple element   050   0420  Wash or ephemeral drain
+(cont'd.)                    (cont'd.)              types (cont'd.)          0421  Lake or pond
+                                                                             0422  Coral reef
+                                                                             0423  Sand in open water
+                                                                             0424  Spoil area
+                                                                             0425  Fish ladders
+                                                                             0426  Holiday area
+	                     					       
+                             Descriptive            Multiple element   050   0601  Underground
+                                                    types                    0602  Overpassing
+                                                                             0603  Elevated
+                                                                             0604  Tunnel
+                                                                             0605  Right bank
+                                                                             0606  Left bank
+                                                                             0607  Under construction
+                                                                             0608  Salt
+                                                                             0609  Unsurveyed
+                                                                             0610  Intermittent
+                                                                             0611  Abandoned or discontinued
+                                                                             0612  Submerged or sunken
+                                                                            *0613  Wooded
+                                                                             0614  Dry
+                                                                             0615  Mineral or hot (sulphur, alkali, etc.)
+                                                                             0616  Navigable, transportation
+                                                                             0617  Underpassing
+                                                                             0618  Earthen construction
+                                                                             0619  Interpolated elevation
+                                                                             0621- Decimal fractions of feet or meters
+                                                                             0629
+	                     					       
+                                                                       050   0000  Photorevised feature
+                             Parameter              Multiple element   05N   ----  Water surface elevation, actual or
+                                                                                   types interpolated, N=1 for feet,
+                                                                                   2 for meters, 6 for feet below datum,
+                                                                                   and 7 for meters below datum.
+                                                                                   Elevation value in four spaces,
+                                                                                   right justified.

@@ -1,0 +1,40 @@
+                                                                       MAJOR MINOR
+DATA CATEGORY                TYPE OF CODE           APPLICATION        CODE  CODE  DESCRIPTION
+U.S. Public Land             Parameters             Areas (cont'd.)                C. Range number(s)
+Survey System                (cont'd.)	            		       
+(cont'd.)                                                              30-   ----  Insert 4 for east of the principal
+                                                                                   meridian or 5 for west of the
+                                                                                   principal meridian in the first
+                                                                                   space. In the second space, insert
+                                                                                   a 0 for a full range, 2 for 1/4
+                                                                                   range, 4 for ½ range, 6 for 3/4
+                                                                                   range, 8 for duplicate to the north
+                                                                                   or east of the original township, or
+                                                                                   9 for triplicate to the north or
+                                                                                   east of the original township.
+                                                                                   Insert range number in last three
+                                                                                   spaces, right justified.
+		             		            		       	  
+                                                                                   D. Section number
+                                                                       301   ----  In the first space, insert 0 for
+                                                                                   numeric section identifier, 1 for
+                                                                                   numeric portion of alphanumeric
+                                                                                   identifier or 2 for alphabetic part
+                                                                                   of alphanumeric identifier. In the
+                                                                                   last three spaces, insert section
+                                                                                   number or numeric representation of
+                                                                                   alphabetic character (01-26), right
+                                                                                   justified.
+		             		            		       	  
+                                                                                   E. Land grant identifier
+                                                                       307   ----  In the first space, insert the
+                                                                                   appropriate number:
+		             		            		       	  
+                                                                             0     for numeric grant identifier
+                                                                             1     for numeric portion of alphanumeric
+                                                                                   identifier
+                                                                             2     for alphabetic portion of
+                                                                                   alphanumeric identifier
+                                                                             3     for alphabetic identifier
+                                                                             4     for identifier of named grant in
+                                                                                   Arizona

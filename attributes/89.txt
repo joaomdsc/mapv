@@ -1,0 +1,42 @@
+                                                                       MAJOR MINOR
+DATA CATEGORY                TYPE OF CODE           APPLICATION        CODE  CODE  DESCRIPTION
+U.S. Public Land             Feature identification Nodes              300   0001  U.S. Public Land Survey System
+Survey System                                                                      section corner
+                                                                             0002  Point on section line (no corner)
+                                                                             0003  Closing corner
+                                                                             0004  Meander corner
+                                                                             0005  Auxiliary meander corner
+                                                                             0006  Special meander corner
+                                                                             0007  Witness corner
+                                                                             0008  Witness point
+                                                                             0009  Angle point
+                                                                             0010  Location monument (includes amended
+                                                                                   monument and mineral monument)
+                                                                             0011  Reference mark
+                                                                             0012  Quarter-section corner
+                                                                             0013  Tract corner
+                                                                             0014  Land grant corner
+                                                                             0015  Arbitrary section corner
+		             
+                                                    Nodes (identifi-   300   0040  Corner identified in field
+                                                    cation procedures)       0041  Corner with horizontal coordinates
+                                                                             0042  Corner with elevation value
+		             						 
+                             Parameters             Areas                          Select one parameter code from each of
+                                                                                   the following A, B, C, and D lists
+                                                                                   and/or consult list E.
+		             						       
+                                                                                   A. Origin of Survey
+		             						       
+                                                                       306   00--  Insert two-digit code from Appendix K.
+		             					   
+                                                                                   B. Township number(s)
+		             						       
+                                                                       30-   ----  Insert 2 for north of the baseline or
+                                                                                   3 for south of the baseline in first
+                                                                                   space. In the second space, insert
+                                                                                   a 0 for full township, 2 for 1/4
+                                                                                   township, 4 for 1/2 township, or 6
+                                                                                   for 3/4 township. Insert township
+                                                                                   number in the last three spaces,
+                                                                                   right justified.

@@ -1,0 +1,44 @@
+                                                                       MAJOR MINOR
+DATA CATEGORY                TYPE OF CODE           APPLICATION        CODE  CODE  DESCRIPTION
+U.S. Public Land             Parameters             Areas (cont'd)           5     for identifier of named grant in
+Survey system                (cont'd.)                                             California
+(cont'd.)                                                                    6     for identifier of named grant in
+                                                                                   Colorado
+                                                                             7     for identifier of named grant in New
+                                                                                   Mexico
+                                                                             8     For identifier of named grant in
+                                                                                   other States
+                                                                                   In the last three spaces after 0-3
+                                                                                   above, insert the grant number or
+                                                                                   numeric representation of the
+                                                                                   alphabetic character (01-26),
+                                                                                   right-justified. In the last three
+                                                                                   spaces after 4-7 above, insert the
+                                                                                   three-digit code of the named grant
+                                                                                   as designated in Appendix L.
+                                                                                   F. Excluded areas
+                                                                       300   0100  Indian lands
+                                                                             0101  Homestead entries
+                                                                             0102  Donation land claims
+                                                                             0103  Land grants; civil colonies
+                                                                             0104  Private extension of public land
+                                                                                   survey
+                                                                             0105  Area of public and private survey
+                                                                                   overlap
+                                                                             0106  Overlapping land grants
+                                                                             0107  Military reservation
+                                                                             0198  Water
+                                                                             0199  Unsurveyed area
+		             
+                             Feature identification Lines              300   0201  Approximate position (within 200 feet)
+                                                                             0202  Protracted position
+                                                                             0203  Arbitrary closure line
+                                                                             0204  Base line
+                                                                             0205  Claim line, grant line
+                                                    Points             300   0300  Location monument
+                                                    (degenerate lines)       0301  Isolated found section corner
+                                                                             0302  Witness corner (off surveyed line)
+		             
+U.S. Public Land             Parameter              Multiple element   308   0000  Best estimate of classification and/or
+Survey System                                       types                          position
+(cont'd.)                                                              309   00--  Coincident feature or symbol

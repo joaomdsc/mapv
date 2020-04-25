@@ -1,0 +1,39 @@
+                                                                       MAJOR MINOR
+DATA CATEGORY                TYPE OF CODE           APPLICATION        CODE  CODE  DESCRIPTION
+Boundaries (cont'd.)         Feature identification Areas (cont'd.)    090   0150  Large park (city, county, or private)
+                             (cont'd.)                                       0151  Small park (city, county, or private)
+                                                                             0197  Canada
+                                                                             0198  Mexico
+                                                                             0199  Open water
+		             						     
+                                                    Lines              090   0201  Indefinite (or approximate) boundary
+                                                                             0202  Disputed boundary
+                                                                             0203  Historical line
+                                                                             0204  Boundary closure claim
+		             						     
+                                                    Points             090   0301  Reference monuments for boundary
+                                                    (degenerate lines)             points
+		             			    
+                                                    Multiple element   090   NONE
+                                                    types
+		             			    
+
+                             Descriptive            Multiple element   090   0000  Photorevised feature
+                                                    types
+		             			    
+                             Parameter              Multiple element   091   00--  State FIPS code
+                                                    types              092   0---  County or county equivalent FIPS code
+                                                                       095   ----  Monument number
+                                                                       096   XXYY  Alphabetic portion of any monument
+                                                                                   number substitute numeric equivalent
+                                                                                   of alphabetic for XX and for YY ass
+                                                                                   follows: 00 blank, 01 = A, 02 = B,
+                                                                                   03 = C, 04 = D, 05 = E, 06 = F,
+                                                                                   07 = G, 08 = H, 09 = I, 10 = J,
+                                                                                   11 = K, 12 = L, 13 = M, 14 = N,
+                                                                                   15 = O, 16 = P, 17 = Q, 18 = R,
+                                                                                   19 = S, 20 = T, 21 = U, 22 = V,
+                                                                                   23 = W, 24 = X, 25 = Y, 26 = Z.
+                                                                       098   0000  Best estimate of classification
+                                                                                   or position.
+                                                                       099   00--  Coincident feature

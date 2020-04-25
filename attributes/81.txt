@@ -1,0 +1,38 @@
+                                                                       MAJOR MINOR
+DATA CATEGORY                TYPE OF CODE           APPLICATION        CODE  CODE  DESCRIPTION
+Transportation, Roads,       Feature identification Nodes              170   0001  Bridge abutment
+and Trails                                                                   0002  Tunnel portal
+                                                                             0004  Gate
+                                                                             0005  Cul-de-sac
+                                                                             0006  Dead end
+                                                                             0007  Drawbridge
+		             					       
+                                                                       170   0100  Void area
+		             					         
+                                                    Lines              170   0201  Primary route, class 1, symbol
+                                                                                   undivided
+                                                                             0202  Primary route, class 1, symbol
+                                                                                   divided by centerline
+                                                                             0203  Primary route, class 1, divided,
+                                                                                   lanes separated
+                                                                             0204  Primary route, class 1, one way, other
+                                                                                   than divided highway
+                                                                             0205  Secondary route, class 2, symbol
+                                                                                   undivided
+                                                                             0206  Secondary route, class 2, symbol
+                                                                                   divided by centerline
+                                                                             0207  Secondary route, class 2, symbol
+                                                                                   divided, lanes separated
+                                                                             0208  Secondary route, class 2, one way,
+                                                                                   other then divided highway
+                                                                             0209  Road or street, class 3
+                                                                             0210  Road or street, class 4
+                                                                             0211  Trail, class 5, other than four-wheel
+                                                                                   drive vehicle
+                                                                             0212  Trail, class 5, four-wheel-drive
+                                                                                   vehicle
+                                                                             0213  Footbridge
+                                                                             0214  Ferry crossing
+                                                                             0215  Perimeter of parking area
+                                                                             0216  Arbitrary extension of line (join or
+                                                                                   closure)

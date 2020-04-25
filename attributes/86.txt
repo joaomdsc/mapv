@@ -1,0 +1,40 @@
+                                                                       MAJOR MINOR
+DATA CATEGORY                TYPE OF CODE           APPLICATION        CODE  CODE  DESCRIPTION
+Transportation,              Descriptive            Multiple element   180   0601  In tunnel
+Railroads (cont'd.)                                 types                    0602  Overpassing, on bridge
+                                                                             0603  Abandoned
+                                                                             0604  Dismantled
+                                                                             0605  Underpassing
+                                                                             0606  Narrow gauge
+                                                                             0607  In snowshed or under structure
+                                                                             0608  Under construction
+                                                                             0609  Elevated
+                                                                             0610  Rapid transit
+                                                                             0611  On drawbridge
+                                                                             0612  Private
+                                                                             0613  U.S. Government
+                                                                             0614  Juxtaposition
+		             		           		       	
+                                                                       180   0000  Photorevised feature
+                             Parameter              Multiple element   181   ----  Number of tracks
+                                                    types              188   0000  Best estimate of position or
+                                                                                   classification
+                                                                       189   00--  Coincident feature
+		             					       
+Transportation,              Feature identification Nodes              190   0001  End of transmission line at
+Pipelines, Trans-                                                                  power station, substation, or
+mission Lines,                                                                     hydroelectric plant
+Miscellaneous Trans-                                                         0002  End of pipeline at oil or gas
+portation Features                                                                 field
+                                                                             0003  End of pipeline at refinery,
+                                                                                   depot, or tank farm
+		             					       		
+                                                    Areas              190   0100  Void area
+		             			   		       
+                                                    Lines              190   0201  Pipeline
+                                                                             0202  Power transmissiion line
+                                                                             0203  Telephone or telegraph line
+                                                                             0204  Aerial tramway, monorail, ski
+                                                                                   lift
+                                                                             0205  Arbitrary line extension
+                                                                             0206  Closure line

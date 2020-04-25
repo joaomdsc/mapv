@@ -1,0 +1,39 @@
+                                                                       MAJOR MINOR
+DATA CATEGORY                TYPE OF CODE           APPLICATION        CODE  CODE  DESCRIPTION
+Transportation, Roads,       Feature identification Lines (cont'd.)          0217  Road or street, class 3, symbol
+and trails (cont'd.)         (cont'd.)                                             divided by centerline
+                                                                             0218  Road or street, class 3, divided
+                                                                                   lanes separated
+                                                                             0221  Road in street, class 3, one way
+                                                                             0222  Road in transition
+		             						       
+                                                    Points                   NONE	       
+                                                    (degenerate lines)
+		             			      
+                                                    Multiple element   170   0401  Traffic circle
+                                                    type                     0402  Cloverleaf or interchange
+                                                                             0403  Toll gate, toll plaza or perimeter or
+                                                                             toll  plaza
+                                                                             0404  Weigh station
+                                                                             0405  Nonstandard section of road
+                                                                      *170   0600  Historical
+		             						
+                             Descriptive            Multiple element   170   0601  In tunnel
+                                                    types                    0602  Overpassing, on bridge
+                                                                             0603  Under construction, classification
+                                                                                   known
+                                                                             0604  Under construction, classification
+                                                                                   unknown
+                                                                             0605  Labeled "old railroad grade"
+                                                                             0606  Submerged or in ford
+                                                                             0607  Underpassing
+                                                                            *0608  Limited access
+                                                                             0609  Toll road
+                                                                             0610  Privately operated or controlled
+                                                                                   public access
+                                                                             0611  Proposed
+                                                                             0612  Double-decked
+                                                                             0613  In service facility or rest area
+                                                                             0614  Elevated
+                                                                             0615  Bypass route
+                                                                             0616  Alternate route

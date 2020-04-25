@@ -1,0 +1,42 @@
+                                                                       MAJOR MINOR
+DATA CATEGORY                TYPE OF CODE           APPLICATION        CODE  CODE  DESCRIPTION
+Transportation, Road,        Parameter (cont'd.)    Multiple element   177   XXYY  Alphabetic portion of any route
+and Trails (cont'd.)                                types (cont'd.)                number. Substitute numeric equivalent
+                                                                                   of alphabetic for XX and for YY
+                                                                                   as follows: 00 = blank, 01 = A,
+                                                                                   02 = B, 03 = C, 04 = D, 05 = E,
+                                                                                   06 = F, 07 = G, 08 = H, 09 = I,
+                                                                                   10 = J, 11 = K, 12 = L, 13 = M,
+                                                                                   14 = N, 15 = O, 16 = P, 17 = Q,
+                                                                                   18 = R, 19 = S, 20 = T, 21 = U,
+                                                                                   22 = V, 23 = W, 24 = X, 25 = Y,
+                                                                                   26 = Z.
+                                                                       178   0000  Best estimate of position or
+                                                                                   classification
+                                                                       179   00--  Coincident feature
+		             					        
+Transportation,              Feature identification Nodes              180   0001  Bridge abutment
+Railroads                                                                    0002  Tunnel portal
+                                                                             0007  Drawbridge
+		             						      
+                                                    Areas              180   0100  Void area
+		             			     
+                                                    Lines              180   0201  Railroad
+                                                                             0202  Railroad in street or road
+                                                                             0204  Carline
+                                                                             0205  Cog railroad, incline railway,
+                                                                                   logging tram
+                                                                             0207  Ferry crossing
+                                                                             0208  Railroad siding
+                                                                             0209  Perimeter or limit of yard
+                                                                             0210  Arbitrary line extension
+                                                                             0211  Closure line
+		             						      
+                                                    Points             180   NONE  
+                                                    (degenerate lines)
+		             			     
+                                                    Multiple element   180   0400  Railroad station, perimeter of
+                                                    types                          station		    
+                                                                             0401  Turntable
+                                                                             0402  Roundhouse
+                                                                      *180   0600  Historical
