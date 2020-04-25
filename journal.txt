@@ -1,0 +1,14 @@
+
+* 2020/04/25
+
+The current version reads boundaries, hydrography and transportation files
+correctly. The banner is
+
+    "USGS-NMD  DLG DATA - CHARACTER FORMAT - 09-29-87 VERSION"
+
+Hypsography is different: a file called 1313723.HP.opt.gz unzips to
+67172HPF03.do instead of 1313723.HP.opt. The file is not parsed corrrectly
+because the first record is not 80 characters long, it's shorter. Other lines
+have varying length. The banner is 
+
+    " *** DLG-OPTIONAL FORMAT   PRODUCED BY USGS   PROSYS RELEASE"

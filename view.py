@@ -40,6 +40,9 @@ class DlgView(wx.Frame):
         # Listen to model updates
         pub.subscribe(self.updt_listener, 'model_updates')
 
+        # Remember where we've been opening files
+        self.open_dir = r'C:\x\data\dds.cr.usgs.gov\pub\data\DLG\100K'
+
     def create_menus(self):
         fm = wx.Menu()
         mi = fm.Append(wx.ID_OPEN, '&Open', 'Open a DLG-3 file')
@@ -56,15 +59,12 @@ class DlgView(wx.Frame):
         return mb
 
     def on_open(self, e):
-        dir = (r'C:\x\data\dds.cr.usgs.gov\pub\data\DLG\100K\B\boston-e_MA'
-            '\hydrography')
-        d = wx.FileDialog(self, 'Choose a file', dir, '', '*.*', wx.FD_OPEN)
+        d = wx.FileDialog(self, 'Choose a file', self.open_dir, '', '*.*', wx.FD_OPEN)
         if d.ShowModal() == wx.ID_OK:
-            dir = d.GetDirectory()
+            self.open_dir = d.GetDirectory()
             file = d.GetFilename()
-            filepath = os.path.join(dir, file)
+            filepath = os.path.join(self.open_dir, file)
             topic = 'view_requests'
-            # print(f'Sending on topic: {topic}, msg={filepath}')
             pub.sendMessage('view_requests', arg=filepath)
         d.Destroy()
 
@@ -124,13 +124,13 @@ class DlgView(wx.Frame):
         def y_win(lat):
             return int(round(orig_win[1] + k*(max_lat - lat)))
 
-        # Control points
-        for cp in self.dlg.ctrl_pts:
-            print(cp, end='')
-            print(f', x={x_win(cp.y)}, y={y_win(cp.x)}')
+        # # Control points
+        # for cp in self.dlg.ctrl_pts:
+        #     print(cp, end='')
+        #     print(f', x={x_win(cp.y)}, y={y_win(cp.x)}')
 
-        # Bounding box
-        print(f'Bbox: {self.dlg.bounding_box()}')
+        # # Bounding box
+        # print(f'Bbox: {self.dlg.bounding_box()}')
 
         dc.SetBrush(wx.Brush('sky blue'))
         dc.SetPen(wx.Pen('sky blue'))

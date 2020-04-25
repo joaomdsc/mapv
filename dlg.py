@@ -31,6 +31,13 @@ class Header1():
     def __str__(self):
         return self.banner
 
+
+    @classmethod
+    def build(cls, s):
+        """Build a class instance from a string."""
+        # print(f'[{len(s)}] s="{s}"')
+        banner = s[0:72]
+
 class Header2():
     def __init__(self, data_cell, states, src_date, qualifier, scale, section):
         self.data_cell = data_cell
@@ -47,8 +54,10 @@ class Header2():
     @classmethod
     def build(cls, s):
         """Build a class instance from a string."""
+        # print(f'[{len(s)}] s="{s}"')
         # Name of digital cartographic unit
         m = re.search('([A-Z]+),\s+([A-Z-]+)', s[0:40])
+        data_cell = states = ''
         if m:
             data_cell = m.group(1)
             states = m.group(2)
@@ -90,6 +99,7 @@ class Header3():
     @classmethod
     def build(cls, s):
         """Build a class instance from a string."""
+        # print(f'[{len(s)}] s="{s}"')
         larg_contour_int = s[41:45]
         larg_bathy_int = s[46:50]
         small_contour_int = s[51:55]
@@ -132,6 +142,7 @@ class Header4():
     @classmethod
     def build(cls, s):
         """Build a class instance from a string."""
+        # print(f'[{len(s)}] s="{s}"')
         dlg_level = int(s[0:6])
         planimetric = int(s[6:12])
         zone =  int(s[12:18])
@@ -501,7 +512,7 @@ class DlgFile():
         max_lat = max_long = -99_999_999.00
         for l in a.adj_lines:
             # Line ids count from 1, not 0
-            for long_, lat in self.lines[abs(l-1)].coords:
+            for long_, lat in self.lines[abs(l)-1].coords:
                 if lat < min_lat:
                     min_lat = lat
                 if lat > max_lat:
@@ -591,7 +602,7 @@ def load_coords(f, nb_coords):
 
 def _load_data(f):
     # Headers
-    hdr1 = Header1(f.read(80)[0:71])
+    hdr1 = Header1.build(f.read(80))
     hdr2 = Header2.build(f.read(80))
     hdr3 = Header3.build(f.read(80))
     hdr4 = Header4.build(f.read(80))
