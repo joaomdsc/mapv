@@ -38,6 +38,8 @@ class Header1():
         # print(f'[{len(s)}] s="{s}"')
         banner = s[0:72]
 
+        return cls(banner)
+
 class Header2():
     def __init__(self, data_cell, states, src_date, qualifier, scale, section):
         self.data_cell = data_cell
@@ -392,7 +394,7 @@ class Line():
         self.nb_attr_pairs = nb_attr_pairs
         self.nb_chars = nb_chars
         self.coords= None  # list of (longitude, latitude) couples
-        self.attrs = None
+        self.attrs = None # array of (major, minor) couples
 
     def __str__(self):
         s = ''
@@ -480,17 +482,17 @@ class DlgFile():
         # Data category identification records
         s += f'{self.categ}\n'
 
-        # Nodes
-        for x in self.nodes:
-            s += f'{x}\n'
+        # # Nodes
+        # for x in self.nodes:
+        #     s += f'{x}\n'
 
-        # Areas
-        for x in self.areas:
-            s += f'{x}\n'
+        # # Areas
+        # for x in self.areas:
+        #     s += f'{x}\n'
 
-        # Lines
-        for x in self.lines:
-            s += f'{x}\n'
+        # # Lines
+        # for x in self.lines:
+        #     s += f'{x}\n'
             
         return s
 
@@ -525,7 +527,49 @@ class DlgFile():
         height = max_lat - min_lat
 
         return min_lat, max_lat, min_long, max_long
-        
+
+
+    def attributes(self):
+        # Gather attributes from one collection of objects
+        def elem_attributes(stuff):
+            u_attr = dict()
+            for x in stuff:
+                if x.attrs is not None and len(x.attrs) > 0:
+                    for maj, min in x.attrs:
+                        s = f'({maj.strip()},{min.strip()})'
+                        u_attr[s] = 'x'
+            s = ''
+            for a in sorted(u_attr.keys()):
+                s += f'  {a}\n'
+            return s
+
+        # Gather all collections
+        s = ''
+        s += 'Nodes:\n'
+        s += elem_attributes(self.nodes)
+        s += 'Areas:\n'
+        s += elem_attributes(self.areas)
+        s += 'Lines:\n'
+        s += elem_attributes(self.lines)
+        return s
+
+    def summary(self):
+        """Return a set of data summarizing this DLG file."""
+        return dict(
+            banner=self.hdr1.banner,
+            data_cell=self.hdr2.data_cell,
+            states=self.hdr2.states,
+            src_date=self.hdr2.src_date,
+            qualifier=self.hdr2.qualifier,
+            scale=self.hdr2.scale,
+            section=self.hdr2.section,
+            ctrl_pts=self.ctrl_pts,
+            category=self.categ.name,
+            nb_nodes=self.categ.nb_nodes,
+            nb_areas=self.categ.nb_areas,
+            nb_lines=self.categ.nb_lines,
+        )
+    
 #-------------------------------------------------------------------------------
 # load_links - 
 #-------------------------------------------------------------------------------
@@ -561,14 +605,14 @@ def load_attributes(f, nb_attrs):
         for k in range(nlines):
             s = f.read(80)
             for i in range(6):
-                major = int(s[12*i:12*i+6])
-                minor = int(s[12*i+6:12*i+12])
+                major = s[12*i:12*i+6]
+                minor = s[12*i+6:12*i+12]
                 attrs.append((major, minor))
         if rem > 0:
             s = f.read(80)
             for i in range(rem):
-                major = int(s[12*i:12*i+6])
-                minor = int(s[12*i+6:12*i+12])
+                major = s[12*i:12*i+6]
+                minor = s[12*i+6:12*i+12]
                 attrs.append((major, minor))
         return attrs
         
@@ -718,4 +762,5 @@ if __name__ == '__main__':
     print(dlg.presences())
     print(f'Bbox: {dlg.bounding_box()}')
     print()
-    print(dlg.show())
+    # print(dlg.show())
+    print(dlg.attributes())

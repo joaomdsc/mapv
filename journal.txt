@@ -12,3 +12,29 @@ because the first record is not 80 characters long, it's shorter. Other lines
 have varying length. The banner is 
 
     " *** DLG-OPTIONAL FORMAT   PRODUCED BY USGS   PROSYS RELEASE"
+
+--------------------------------------------------------------------------------
+
+* 2020/04/26
+
+** File description
+
+- hdr1
+  - banner
+
+- hdr2
+  - data_cell, states, src_date, qualifier, scale, section
+
+- hdr4
+  - nb_ctrl_pts
+
+- ctrl_points
+  - label,  (lat, long) = (y, x)
+
+** Bug
+
+Inside the dialog box's init, calling values.data_cell instead of
+values['data_cell'] hangs the program with no error message. Same thing with a
+StaticText when erroneously putting an int instead of a string inside the
+label.
+
