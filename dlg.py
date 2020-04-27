@@ -532,15 +532,19 @@ class DlgFile():
     def attributes(self):
         # Gather attributes from one collection of objects
         def elem_attributes(stuff):
-            u_attr = dict()
+            attr = dict()
             for x in stuff:
                 if x.attrs is not None and len(x.attrs) > 0:
                     for maj, min in x.attrs:
+                        # Store the count of occurrences of this attributes
                         s = f'({maj.strip()},{min.strip()})'
-                        u_attr[s] = 'x'
+                        if s in attr:
+                            attr[s] += 1
+                        else:
+                            attr[s] = 1
             s = ''
-            for a in sorted(u_attr.keys()):
-                s += f'  {a}\n'
+            for k, v in sorted(attr.items()):
+                s += f'  {k}\t{v}\n'
             return s
 
         # Gather all collections

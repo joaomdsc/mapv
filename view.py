@@ -3,6 +3,7 @@
 import os
 import wx
 from pubsub import pub
+from summary import SummaryDialog
 
 #-------------------------------------------------------------------------------
 # I want stdout to be unbuffered, always
@@ -21,79 +22,12 @@ import sys
 sys.stdout = Unbuffered(sys.stdout)
 
 #-------------------------------------------------------------------------------
-# SummaryDialog
-#-------------------------------------------------------------------------------
-
-class SummaryDialog(wx.Dialog):
-    
-    def __init__(self, filename=None, values=None):
-        super(SummaryDialog, self).__init__(None)
-
-        vbox = wx.BoxSizer(wx.VERTICAL)
-
-        # Filename
-        b = wx.BoxSizer(wx.HORIZONTAL)
-        b.Add(wx.StaticText(self, -1, label='Filename : '))
-        b.Add(wx.StaticText(self, -1, label=filename))
-        vbox.Add(b, proportion=0)
-
-        # Banner
-        b = wx.BoxSizer(wx.HORIZONTAL)
-        b.Add(wx.StaticText(self, -1, label='Banner : '))
-        b.Add(wx.StaticText(self, -1, label=values['banner']))
-        vbox.Add(b, proportion=0)
-
-        # Data cell
-        b = wx.BoxSizer(wx.HORIZONTAL)
-        b.Add(wx.StaticText(self, -1, label=values['data_cell']))
-        b.Add(wx.StaticText(self, -1, label=values['states']))
-        b.Add(wx.StaticText(self, -1, label=values['src_date']))
-        b.Add(wx.StaticText(self, -1, label=values['qualifier']))
-        b.Add(wx.StaticText(self, -1, label=values['scale']))
-        b.Add(wx.StaticText(self, -1, label=values['section']))
-        vbox.Add(b, proportion=0)
-
-        # Category
-        b = wx.BoxSizer(wx.HORIZONTAL)
-        b.Add(wx.StaticText(self, -1, label='Category : '))
-        b.Add(wx.StaticText(self, -1, label=values['category']))
-        vbox.Add(b, proportion=0)
-
-        # Nodes
-        b = wx.BoxSizer(wx.HORIZONTAL)
-        b.Add(wx.StaticText(self, -1, label='Nodes : '))
-        b.Add(wx.StaticText(self, -1, label=str(values['nb_nodes'])))
-        vbox.Add(b, proportion=0)
-
-        # Areas
-        b = wx.BoxSizer(wx.HORIZONTAL)
-        b.Add(wx.StaticText(self, -1, label='Areas : '))
-        b.Add(wx.StaticText(self, -1, label=str(values['nb_areas'])))
-        vbox.Add(b, proportion=0)
-
-        # Lines
-        b = wx.BoxSizer(wx.HORIZONTAL)
-        b.Add(wx.StaticText(self, -1, label='Lines : '))
-        b.Add(wx.StaticText(self, -1, label=str(values['nb_lines'])))
-        vbox.Add(b, proportion=0)
-
-        self.SetSizer(vbox)
-        self.Layout()
-
-        self.SetSize((400, 200))
-        self.SetTitle("Summary")
-
-    def OnClose(self, e):
-        self.Destroy()
-
-
-#-------------------------------------------------------------------------------
 # DlgView - a window whose size and position can be changed by the user
 #-------------------------------------------------------------------------------
 
 class DlgView(wx.Frame):
 
-    def __init__(self):
+    def __init__(self, filepath=None):
         super(DlgView, self).__init__(None, -1, title='Mapv', size=(900, 600))
 
         self.SetTitle('Mapv')
@@ -123,8 +57,17 @@ class DlgView(wx.Frame):
         # Misc
         self.request = ''
 
+        # Initially open file
+        if filepath is not None:
+            self.set_dir(os.path.dirname(filepath))
+            self.file = os.path.basename(filepath)
+            topic = 'view_requests'
+            self.request = 'open'
+            pub.sendMessage('view_requests', arg=filepath)
+
+
     def show_summary(self, e):
-        if self.file is None:
+        if self.dlg is None:
             self.GetStatusBar().PushStatusText('No file open')
             return
         with SummaryDialog(filename=self.file,
@@ -174,6 +117,7 @@ class DlgView(wx.Frame):
         if d.ShowModal() == wx.ID_OK:
             dir = d.GetDirectory()
             self.set_dir(dir)
+            # FIXME self.file should be set by the update listener
             self.file = d.GetFilename()
             filepath = os.path.join(dir, self.file)
             topic = 'view_requests'

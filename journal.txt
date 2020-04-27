@@ -17,20 +17,6 @@ have varying length. The banner is
 
 * 2020/04/26
 
-** File description
-
-- hdr1
-  - banner
-
-- hdr2
-  - data_cell, states, src_date, qualifier, scale, section
-
-- hdr4
-  - nb_ctrl_pts
-
-- ctrl_points
-  - label,  (lat, long) = (y, x)
-
 ** Bug
 
 Inside the dialog box's init, calling values.data_cell instead of
@@ -38,3 +24,14 @@ values['data_cell'] hangs the program with no error message. Same thing with a
 StaticText when erroneously putting an int instead of a string inside the
 label.
 
+--------------------------------------------------------------------------------
+
+* 2020/04/27
+
+** Commit
+
+Specify a file to be opened immediately when launching the program.
+
+Perform some styling on the "Summary" dialog box: bold labels, white
+backgrounds, thin border. Internal spacing (margins) around the text is
+still missing.

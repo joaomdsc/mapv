@@ -27,12 +27,12 @@ sys.stdout = Unbuffered(sys.stdout)
 #-------------------------------------------------------------------------------
 
 class Controller:
-    def __init__(self):
+    def __init__(self, filepath=None):
         self.model = DlgModel()
-        self.view = DlgView()
-        self.view.Show()
-
+        
         pub.subscribe(self.handle_request, 'view_requests')
+        self.view = DlgView(filepath)
+        self.view.Show()
 
     def handle_request(self, arg):
         filepath = arg
@@ -43,6 +43,10 @@ class Controller:
 #===============================================================================
 
 if __name__ == '__main__':
+    filepath = None
+    if len(sys.argv) == 2:
+        filepath = sys.argv[1]
+        
     app = wx.App()
-    c = Controller()
+    c = Controller(filepath=filepath)
     app.MainLoop()
