@@ -3,6 +3,7 @@
 import os
 import wx
 from pubsub import pub
+from panel import MainPanel
 from summary import SummaryDialog
 
 #-------------------------------------------------------------------------------
@@ -35,21 +36,16 @@ class DlgView(wx.Frame):
         self.SetMenuBar(self.create_menus())
         self.Show(True)
 
-        # Other widgets
-        self.panel = wx.Panel(self)
+        # Main panel
+        self.panel = MainPanel(self, parent_frame=self)
         self.panel.Bind(wx.EVT_PAINT, self.on_paint)
-        self.sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.caption = wx.StaticText(self, -1, "My text caption")
-        self.control = wx.TextCtrl(self, -1, size=(200,150), style=wx.TE_MULTILINE)
-        self.sizer.Add(self.caption, proportion=0)
-        self.sizer.Add(self.control, proportion=0)
-        self.sizer.Add(self.panel, proportion=1, flag=wx.EXPAND)
-        self.SetSizer(self.sizer)
 
         # The view needs its model, so it can show it
         self.dlg = None  # open
         self.dlg2 = None  # add
         self.file = None
+        self.line_nbr = None
+        self.area_nbr = None
 
         # Listen to model updates
         pub.subscribe(self.updt_listener, 'model_updates')
@@ -160,11 +156,14 @@ class DlgView(wx.Frame):
 
     def on_quit(self, e):
         self.Close(True)
-                  
-    def dlg_draw(self, dc, dlg, pen, brush):
+
+    def get_transform(self, dlg):
+        """Get the transformation functions from map to drawing."""
+        
         # Size of device context
-        w_wx, h_wx = dc.GetSize()
+        w_wx, h_wx = self.dc.GetSize()
         pad = 10
+        
         # Drawable area (after padding)
         w_draw = w_wx - 2*pad
         h_draw = h_wx - 2*pad
@@ -190,7 +189,7 @@ class DlgView(wx.Frame):
             h_win = k*h_map  # Height of drawing window must be computed
             vert_offset = (h_draw - h_win)/2
             orig_win = (pad, pad + vert_offset)
-
+            
         def x_win(long_):
             # Axis direction: longitude grows to the right
             return int(round(orig_win[0] + k*(long_ - min_long)))
@@ -198,38 +197,89 @@ class DlgView(wx.Frame):
         def y_win(lat):
             return int(round(orig_win[1] + k*(max_lat - lat)))
 
-        # # Control points
-        # for cp in dlg.ctrl_pts:
-        #     print(cp, end='')
-        #     print(f', x={x_win(cp.y)}, y={y_win(cp.x)}')
+        # Return the required functions
+        return x_win, y_win
+        
+    def dlg_draw(self, dlg, pen, brush):
+        # Transforming coordinates from map to drawing
+        x_win, y_win = self.get_transform(dlg)
 
-        # # Bounding box
-        # print(f'Bbox: {dlg.bounding_box()}')
-
-        dc.SetBrush(brush)
-        dc.SetPen(pen)
-        cnt_lines = 0
+        # Draw the lines in black
+        self.dc.SetBrush(brush)
+        self.dc.SetPen(pen)
         for l in dlg.lines:
             if len(l.coords) > 1:
                 # l.coords is a list of (long, lat) couples
                 prev_long, prev_lat = l.coords[0]
-                cnt_coords = 0
                 for long_, lat in l.coords[1:]:
                     # Draw line segment from prev to current
-                    dc.DrawLine(x_win(prev_long), y_win(prev_lat),
+                    self.dc.DrawLine(x_win(prev_long), y_win(prev_lat),
                                 x_win(long_), y_win(lat))
                     prev_lat = lat
                     prev_long = long_
+
+        # Draw areas that meet certain criteria
+        self.dc.SetBrush(wx.Brush('sky blue'))
+        self.dc.SetPen(wx.Pen('black'))
+        for a in dlg.areas:
+            print(f"Area {a.id}: {', '.join([str(x) for x in a.adj_lines])}")
+            if a.attrs is not None and len(a.attrs) > 0 and a.nb_islands == 0:
+                for maj, min in a.attrs:
+                    if int(maj) == 50 and int(min) in [116, 412, 421]:
+                        points = [(x_win(long_), y_win(lat))
+                                      for long_, lat in a.get_points(self.dlg)]
+                        self.dc.DrawPolygon(points)
+
+    def draw_red_line(self, line_nbr):
+        self.line_nbr = line_nbr
+        self.Refresh()
+
+    def draw_line(self, line_nbr):
+        # Transforming coordinates from map to drawing
+        x_win, y_win = self.get_transform(self.dlg)
+
+        self.dc.SetBrush(wx.Brush('black'))
+        self.dc.SetPen(wx.Pen('red'))
+        line = self.dlg.lines[line_nbr - 1]
+        if len(line.coords) > 1:
+            # line.coords is a list of (long, lat) couples
+            prev_long, prev_lat = line.coords[0]
+            for long_, lat in line.coords[1:]:
+                # Draw line segment from prev to current
+                self.dc.DrawLine(x_win(prev_long), y_win(prev_lat),
+                            x_win(long_), y_win(lat))
+                prev_lat = lat
+                prev_long = long_
+
+    def draw_blue_area(self, area_nbr):
+        self.area_nbr = area_nbr
+        self.Refresh()
+
+    def draw_area(self, area_nbr):
+        # Transforming coordinates from map to drawing
+        x_win, y_win = self.get_transform(self.dlg)
         
+        self.dc.SetBrush(wx.Brush('sky blue'))
+        self.dc.SetPen(wx.Pen('black'))
+        a = self.dlg.areas[area_nbr-1]
+        print(f"Area {a.id}: {', '.join([str(x) for x in a.adj_lines])}")
+        points = [(x_win(long_), y_win(lat))
+                      for long_, lat in a.get_points(self.dlg)]
+        self.dc.DrawPolygon(points)
+
     def on_paint(self, e):
         self.dc = wx.PaintDC(self.panel)
         self.dc.SetBackground(wx.Brush('white'))
         self.dc.Clear()
         if self.dlg is None:
             return
-        self.dlg_draw(self.dc, self.dlg, wx.Pen('sky blue'), wx.Brush('sky blue'))
+        self.dlg_draw(self.dlg, wx.Pen('black'), wx.Brush('black'))
         if self.dlg2 is not None:
-            self.dlg_draw(self.dc, self.dlg2, wx.Pen('black'), wx.Brush('black'))
+            self.dlg_draw(self.dlg2, wx.Pen('black'), wx.Brush('black'))
+        if self.line_nbr is not None:
+            self.draw_line(self.line_nbr)
+        if self.area_nbr is not None:
+            self.draw_area(self.area_nbr)
     
 #===============================================================================
 # main

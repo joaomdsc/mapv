@@ -377,6 +377,46 @@ class NodeOrArea():
         """
         pass
 
+    def get_points(self, dlg):
+        # FIXME make this a lazy generator, coords will be transformed 
+        if self.type == 'N':
+            return None
+        points = []
+        endpoints = {}
+        for l in self.adj_lines:
+            line = dlg.lines[abs(l)-1]
+
+            # s = f'Line {abs(l)}'
+            # long_, lat = line.coords[0]
+            # s += f', beg: {long_:7.2f} {lat:7.2f}'
+            # long_, lat = line.coords[1]
+            # s += f', end: {long_:7.2f} {lat:7.2f}'
+            # print(s)
+
+            # We musn't duplicate the first and last points
+            # FIXME We're not using the mine id's sign, maybe we should
+
+            # Check whether start point is present already
+            # long_, lat = line.coords[0]
+            # s = f'{long_:7.2f} {lat:7.2f}'
+            # if s in endpoints:
+            #     # Don't add the first one, add all the ones in the middle
+            #     points += line.coords[1:-1]
+            # else:
+            #     endpoints[s] = True
+            #     # Add both the first and all the ones in between 
+            #     points += line.coords[:-1]
+
+            # # Check whether end point is present already
+            # long_, lat = line.coords[-1]
+            # s = f'{long_:7.2f} {lat:7.2f}'
+            # if s not in endpoints:
+            #     endpoints[s] = True
+            #     # Add the last one
+            #     points.append(line.coords[-1])
+            points += line.coords
+        return points
+
 #-------------------------------------------------------------------------------
 # Line identification records
 #-------------------------------------------------------------------------------
@@ -482,17 +522,17 @@ class DlgFile():
         # Data category identification records
         s += f'{self.categ}\n'
 
-        # # Nodes
-        # for x in self.nodes:
-        #     s += f'{x}\n'
+        # Nodes
+        for x in self.nodes:
+            s += f'{x}\n'
 
-        # # Areas
-        # for x in self.areas:
-        #     s += f'{x}\n'
+        # Areas
+        for x in self.areas:
+            s += f'{x}\n'
 
-        # # Lines
-        # for x in self.lines:
-        #     s += f'{x}\n'
+        # Lines
+        for x in self.lines:
+            s += f'{x}\n'
             
         return s
 
@@ -588,7 +628,6 @@ def load_links(f, nb_links):
         if rem > 0:
             s = f.read(80)
             lines.extend([int(s[6*i:6*(i+1)]) for i in range(rem)])
-
         return lines
         
 #-------------------------------------------------------------------------------
@@ -691,6 +730,7 @@ def _load_data(f):
             x.attrs = load_attributes(f, x.nb_attr_pairs)
 
         nodes.append(x)
+    # nodes.reverse()
 
     # Area records
     areas = []
@@ -707,6 +747,7 @@ def _load_data(f):
             x.attrs = load_attributes(f, x.nb_attr_pairs)
 
         areas.append(x)
+    # areas.reverse()
 
     # Line records
     lines = []
@@ -766,5 +807,7 @@ if __name__ == '__main__':
     print(dlg.presences())
     print(f'Bbox: {dlg.bounding_box()}')
     print()
-    # print(dlg.show())
+    print(dlg.show())
     print(dlg.attributes())
+
+    # show_data(filepath)
