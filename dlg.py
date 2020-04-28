@@ -19,7 +19,35 @@ def int_blank(s):
 
 def float_blank(s):
     return None if s == ' '*len(s) else float(s)
-    
+   
+def attrs_counts(stuff):
+    """Count occurrences of attributes in one kind of stuff.
+
+    Here stuff means an array of objects that have attributes, typically
+    dlg.nodes, or areas, or lines..
+"""
+    d = {}
+    for x in stuff:
+        # For all nodes, ... or all areas...
+        if x.attrs is not None and len(x.attrs) > 0:
+            for maj, min in x.attrs:
+                # attrs is an array of (major, minor) attribute codes. Store the
+                # count of occurrences of these attributes in a dictionary.
+                s = f'({maj.strip()},{min.strip()})'
+                if s in d:
+                    d[s] += 1
+                else:
+                    d[s] = 1
+    return d
+
+def merge_attrs(d1, d2):
+    """Merge the two dictionaries, adding the values of common keys."""
+    d3 = {**d1, **d2}  # Keeps values from d2
+    for k, v in d3.items():
+        if k in d1 and k in d2:
+            d3[k] += d1[k]
+    return d3
+ 
 #-------------------------------------------------------------------------------
 # File identification and description records
 #-------------------------------------------------------------------------------
@@ -281,12 +309,12 @@ class DataCategory():
 #-------------------------------------------------------------------------------
  
 class NodeOrArea():
-    def __init__(self, type, id, lat, long, nb_na_links, nb_line_links,
+    def __init__(self, type, id, long_, lat, nb_na_links, nb_line_links,
                  nb_points, nb_attr_pairs, nb_chars, nb_islands):
         self.type = type
         self.id = id
+        self.long = long_
         self.lat = lat
-        self.long = long
         self.nb_na_links = nb_na_links
         self.nb_line_links = nb_line_links
         self.nb_points = nb_points
@@ -294,11 +322,11 @@ class NodeOrArea():
         self.nb_chars = nb_chars
         self.nb_islands = nb_islands
         self.adj_lines= None
-        self.attrs = None
+        self.attrs = None  # array of (major, minor) string couples
 
     def __str__(self):
         s = ''
-        s += f'{self.type}, {self.id}, {self.lat}, {self.long}'
+        s += f'{self.type}, {self.id}, {self.long}, {self.lat}'
         s += f', {self.nb_na_links}, {self.nb_line_links}, {self.nb_points}'
         s += f', {self.nb_attr_pairs}, {self.nb_chars}, {self.nb_islands}'
 
@@ -319,8 +347,8 @@ class NodeOrArea():
         """Build a class instance from a string."""
         type = s[0:1]
         id = int(s[1:6])
-        lat =  float_blank(s[6:18])
-        long = float_blank(s[18:30])
+        long_ =  float_blank(s[6:18])
+        lat = float_blank(s[18:30])
         nb_na_links = int_blank(s[30:36])
         nb_line_links = int_blank(s[36:42])
 
@@ -333,7 +361,7 @@ class NodeOrArea():
         # Number of islands within area
         nb_islands = int(s[60:66]) if type == 'A' else None
 
-        return cls(type, id, lat, long, nb_na_links, nb_line_links, nb_points,
+        return cls(type, id, long_, lat, nb_na_links, nb_line_links, nb_points,
                    nb_attr_pairs, nb_chars, nb_islands)
 
     # Node-to-line linkage records
@@ -386,35 +414,14 @@ class NodeOrArea():
         for l in self.adj_lines:
             line = dlg.lines[abs(l)-1]
 
-            # s = f'Line {abs(l)}'
-            # long_, lat = line.coords[0]
-            # s += f', beg: {long_:7.2f} {lat:7.2f}'
-            # long_, lat = line.coords[1]
-            # s += f', end: {long_:7.2f} {lat:7.2f}'
-            # print(s)
+            # Negative line id: the list of coords must be read in reverse order
+            x = line.coords if l > 0 else list(reversed(line.coords))
 
-            # We musn't duplicate the first and last points
-            # FIXME We're not using the mine id's sign, maybe we should
-
-            # Check whether start point is present already
-            # long_, lat = line.coords[0]
-            # s = f'{long_:7.2f} {lat:7.2f}'
-            # if s in endpoints:
-            #     # Don't add the first one, add all the ones in the middle
-            #     points += line.coords[1:-1]
-            # else:
-            #     endpoints[s] = True
-            #     # Add both the first and all the ones in between 
-            #     points += line.coords[:-1]
-
-            # # Check whether end point is present already
-            # long_, lat = line.coords[-1]
-            # s = f'{long_:7.2f} {lat:7.2f}'
-            # if s not in endpoints:
-            #     endpoints[s] = True
-            #     # Add the last one
-            #     points.append(line.coords[-1])
-            points += line.coords
+            # Don't duplicate the first point
+            if len(points) > 0 and points[-1] == line.coords[0]:
+                x = x[1:]
+                
+            points += x
         return points
 
 #-------------------------------------------------------------------------------
@@ -434,7 +441,7 @@ class Line():
         self.nb_attr_pairs = nb_attr_pairs
         self.nb_chars = nb_chars
         self.coords= None  # list of (longitude, latitude) couples
-        self.attrs = None # array of (major, minor) couples
+        self.attrs = None # array of (major, minor) string couples
 
     def __str__(self):
         s = ''
@@ -536,6 +543,16 @@ class DlgFile():
             
         return s
 
+    def show_tgt_areas(self):
+        # Target is of the form (min_lat, max_lat, min_long, max_long)
+        tgt = self.target(0, 10, 0, 33)
+
+        s = ''
+        for x in self.areas:
+            if self.inclusion((x.long, x.lat), tgt):
+                s += f'{x}\n'
+        return s
+        
     def presences(self):
         c = self.categ
         s = ''
@@ -563,38 +580,53 @@ class DlgFile():
                     min_long = long_
                 if long_ > max_long:
                     max_long = long_
-        width = max_long - min_long
-        height = max_lat - min_lat
 
         return min_lat, max_lat, min_long, max_long
 
+    def target(self, min_lat_pc, max_lat_pc, min_long_pc, max_long_pc):
+        """Args are percentage of min_lat, max_lat, etc, applied to bbox.
 
-    def attributes(self):
-        # Gather attributes from one collection of objects
-        def elem_attributes(stuff):
-            attr = dict()
-            for x in stuff:
-                if x.attrs is not None and len(x.attrs) > 0:
-                    for maj, min in x.attrs:
-                        # Store the count of occurrences of this attributes
-                        s = f'({maj.strip()},{min.strip()})'
-                        if s in attr:
-                            attr[s] += 1
-                        else:
-                            attr[s] = 1
-            s = ''
-            for k, v in sorted(attr.items()):
-                s += f'  {k}\t{v}\n'
-            return s
+        I'm trying to identify an area that appears to be in the first
+        (lowest) 10% of longitude (in the displayed map) and in the
+        middle tier of latitude. So I'll be calling
 
-        # Gather all collections
+            target(33, 66, 0, 10)
+            
+        to get a bounding box in map coordinates, and then test each
+        area's representative point for inclusion.
+"""
+        # This quad's bounding box in map coordinates
+        min_lat, max_lat, min_long, max_long = self.bounding_box()
+        lat_height = max_lat - min_lat
+        long_width = max_long - min_long
+        
+        tgt_min_lat = lat_height*min_lat_pc/100 + min_lat
+        tgt_max_lat = lat_height*max_lat_pc/100 + min_lat
+        
+        tgt_min_long = long_width*min_long_pc/100 + min_long
+        tgt_max_long = long_width*max_long_pc/100 + min_long
+        
+        return tgt_min_lat, tgt_max_lat, tgt_min_long, tgt_max_long
+
+    def inclusion(self, pt, tgt):
+        """pt is a 2-uple, tgt is a 4-uple.
+
+        pt = (long, lat)
+        tgt = min_lat, max_lat, min_long, max_long
+"""
+        return tgt[0] <= pt[1] <= tgt[1] and tgt[2] <= pt[0] <= tgt[3]
+
+    def show_attributes(self):
         s = ''
         s += 'Nodes:\n'
-        s += elem_attributes(self.nodes)
+        for k, v in sorted(attrs_counts(self.nodes).items()):
+            s += f'  {k}\t{v}\n'
         s += 'Areas:\n'
-        s += elem_attributes(self.areas)
+        for k, v in sorted(attrs_counts(self.areas).items()):
+            s += f'  {k}\t{v}\n'
         s += 'Lines:\n'
-        s += elem_attributes(self.lines)
+        for k, v in sorted(attrs_counts(self.lines).items()):
+            s += f'  {k}\t{v}\n'
         return s
 
     def summary(self):
@@ -641,6 +673,8 @@ def load_attributes(f, nb_attrs):
         Within each pair, the first integer is the major code and the second
         integer is the minor code. Each major and minor code is a
         one--to-four-digit integer, right justified within the six-byte field.
+
+        Return an array of 2-uples of strings in the form (major, minor).
         """
         nlines = nb_attrs//6
         rem = nb_attrs%6
@@ -804,10 +838,11 @@ if __name__ == '__main__':
 
     filepath = sys.argv[1]
     dlg = load_data(filepath)
-    print(dlg.presences())
-    print(f'Bbox: {dlg.bounding_box()}')
-    print()
-    print(dlg.show())
-    print(dlg.attributes())
+    # print(dlg.presences())
+    # print(f'Bbox: {dlg.bounding_box()}')
+    # print()
+    # print(dlg.show())
+    print(dlg.show_attributes())
 
     # show_data(filepath)
+    # print(dlg.show_tgt_areas())

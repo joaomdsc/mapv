@@ -75,12 +75,12 @@ class MainPanel(wx.Panel):
     def OnButtonLine(self, e):
         line = int(self.tcl.GetValue())
         # print(f'Drawing line {line}.')
-        self.parent_frame.draw_red_line(line)
+        self.parent_frame.on_draw_line(line)
 
     def OnButtonArea(self, e):
         area = int(self.tca.GetValue())
         # print(f'Drawing area {area}.')
-        self.parent_frame.draw_blue_area(area)
+        self.parent_frame.on_draw_area(area)
 
 #===============================================================================
 # main

@@ -5,6 +5,7 @@ import wx
 from pubsub import pub
 from panel import MainPanel
 from summary import SummaryDialog
+from style import get_style
 
 #-------------------------------------------------------------------------------
 # I want stdout to be unbuffered, always
@@ -61,7 +62,6 @@ class DlgView(wx.Frame):
             self.request = 'open'
             pub.sendMessage('view_requests', arg=filepath)
 
-
     def show_summary(self, e):
         if self.dlg is None:
             self.GetStatusBar().PushStatusText('No file open')
@@ -69,6 +69,14 @@ class DlgView(wx.Frame):
         with SummaryDialog(filename=self.file,
                            values=self.dlg.summary()) as d:
             d.ShowModal()
+
+    def show_colors(self, e):
+        data = wx.ColourData()
+        with wx.ColourDialog(self, data) as d:
+            d.ShowModal()
+            data = d.GetColourData()
+            c = data.GetColour()
+            print(f'Color: {c}')
             
     def create_menus(self):
         fm = wx.Menu()
@@ -80,6 +88,8 @@ class DlgView(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_refresh, mi)
         mi = fm.Append(wx.ID_ANY, 'Summary', 'Show a summary of file')
         self.Bind(wx.EVT_MENU, self.show_summary, mi)
+        mi = fm.Append(wx.ID_ANY, 'Colors', 'Color picker')
+        self.Bind(wx.EVT_MENU, self.show_colors, mi)
         mi = fm.Append(wx.ID_ABOUT, '&About', 'Yet another map viewer')
         self.Bind(wx.EVT_MENU, self.on_about, mi)
         fm.AppendSeparator()
@@ -122,12 +132,13 @@ class DlgView(wx.Frame):
         d.Destroy()
 
     def on_add(self, e):
-        d = wx.FileDialog(self, 'Add a file on top', self.open_dir, '', '*.*',
+        d = wx.FileDialog(self, 'Add a file on top', self.get_dir(), '', '*.*',
                           wx.FD_OPEN)
         if d.ShowModal() == wx.ID_OK:
-            self.open_dir = d.GetDirectory()
+            dir = d.GetDirectory()
+            self.set_dir(dir)
             file = d.GetFilename()
-            filepath = os.path.join(self.open_dir, file)
+            filepath = os.path.join(dir, file)
             topic = 'view_requests'
             self.request = 'add'
             pub.sendMessage('view_requests', arg=filepath)
@@ -157,7 +168,14 @@ class DlgView(wx.Frame):
     def on_quit(self, e):
         self.Close(True)
 
-    def get_transform(self, dlg):
+    def bbox_union(self, b1, b2):
+        min_lat = b1[0] if b1[0] < b2[0] else b2[0]
+        max_lat = b1[1] if b1[1] < b2[1] else b2[1]
+        min_long = b1[2] if b1[2] < b2[2] else b2[2]
+        max_long = b1[3] if b1[3] < b2[3] else b2[3]
+        return min_lat, max_lat, min_long, max_long
+        
+    def get_transform(self):
         """Get the transformation functions from map to drawing."""
         
         # Size of device context
@@ -170,7 +188,14 @@ class DlgView(wx.Frame):
         ratio_draw = w_draw/h_draw
 
         # Map proportions
-        min_lat, max_lat, min_long, max_long = dlg.bounding_box()
+        if self.dlg2 is None:
+            # self.dlg is the one defining the global bounding box
+            min_lat, max_lat, min_long, max_long = self.dlg.bounding_box()
+        else:
+            # We're combining two quad's
+            min_lat, max_lat, min_long, max_long = self.bbox_union(
+                self.dlg.bounding_box(), self.dlg2.bounding_box())
+            
         w_map = max_long - min_long
         h_map = max_lat - min_lat
         ratio_map = w_map/h_map
@@ -200,16 +225,26 @@ class DlgView(wx.Frame):
         # Return the required functions
         return x_win, y_win
         
-    def dlg_draw(self, dlg, pen, brush):
+    def dlg_draw(self, dlg):
         # Transforming coordinates from map to drawing
-        x_win, y_win = self.get_transform(dlg)
+        x_win, y_win = self.get_transform()
 
         # Draw the lines in black
-        self.dc.SetBrush(brush)
-        self.dc.SetPen(pen)
+        default_pen = wx.Pen('black')
+        default_brush = wx.Brush('black')
+        
         for l in dlg.lines:
             if len(l.coords) > 1:
                 # l.coords is a list of (long, lat) couples
+                pen = brush = None
+                if l.attrs is not None and len(l.attrs) > 0:
+                    maj, min = l.attrs[0]
+                    # print(f'Line {l.id}: "{maj}", "{min}"')
+                    pen, brush = get_style('hydrography', 'lines', maj, min)
+                    
+                self.dc.SetPen(default_pen if pen is None else pen)
+                self.dc.SetBrush(default_brush if brush is None else brush)
+                
                 prev_long, prev_lat = l.coords[0]
                 for long_, lat in l.coords[1:]:
                     # Draw line segment from prev to current
@@ -219,28 +254,35 @@ class DlgView(wx.Frame):
                     prev_long = long_
 
         # Draw areas that meet certain criteria
-        self.dc.SetBrush(wx.Brush('sky blue'))
-        self.dc.SetPen(wx.Pen('black'))
         for a in dlg.areas:
-            print(f"Area {a.id}: {', '.join([str(x) for x in a.adj_lines])}")
-            if a.attrs is not None and len(a.attrs) > 0 and a.nb_islands == 0:
-                for maj, min in a.attrs:
-                    if int(maj) == 50 and int(min) in [116, 412, 421]:
-                        points = [(x_win(long_), y_win(lat))
-                                      for long_, lat in a.get_points(self.dlg)]
-                        self.dc.DrawPolygon(points)
+            if a.nb_islands > 0 or a.attrs is None or len(a.attrs) == 0:
+                continue
+            maj, min = a.attrs[0]
+            # print(f'Area {a.id}: "{maj}", "{min}"')
+            pen, brush = get_style('hydrography', 'areas', maj, min)
+            if pen is None and brush is None:
+                continue
+            self.dc.SetPen(default_pen if pen is None else pen)
+            self.dc.SetBrush(default_brush if brush is None else brush)
+            points = [(x_win(long_), y_win(lat))
+                              for long_, lat in a.get_points(dlg)]
+            self.dc.DrawPolygon(points)
 
-    def draw_red_line(self, line_nbr):
+    def on_draw_line(self, line_nbr):
         self.line_nbr = line_nbr
         self.Refresh()
 
     def draw_line(self, line_nbr):
         # Transforming coordinates from map to drawing
-        x_win, y_win = self.get_transform(self.dlg)
+        x_win, y_win = self.get_transform()
 
-        self.dc.SetBrush(wx.Brush('black'))
-        self.dc.SetPen(wx.Pen('red'))
+        pen, brush = wx.Pen('black'), wx.Brush('black')
         line = self.dlg.lines[line_nbr - 1]
+        if line.attrs is not None and len(line.attrs) > 0:
+            maj, min = line.attrs[0]
+            pen, brush = get_style('hydrography', 'lines', maj, min)
+        self.dc.SetPen(pen)
+        self.dc.SetBrush(brush)
         if len(line.coords) > 1:
             # line.coords is a list of (long, lat) couples
             prev_long, prev_lat = line.coords[0]
@@ -251,18 +293,22 @@ class DlgView(wx.Frame):
                 prev_lat = lat
                 prev_long = long_
 
-    def draw_blue_area(self, area_nbr):
+    def on_draw_area(self, area_nbr):
         self.area_nbr = area_nbr
         self.Refresh()
 
     def draw_area(self, area_nbr):
         # Transforming coordinates from map to drawing
-        x_win, y_win = self.get_transform(self.dlg)
+        x_win, y_win = self.get_transform()
         
-        self.dc.SetBrush(wx.Brush('sky blue'))
-        self.dc.SetPen(wx.Pen('black'))
+        pen, brush = wx.Pen('red'), wx.Brush('orange')
         a = self.dlg.areas[area_nbr-1]
-        print(f"Area {a.id}: {', '.join([str(x) for x in a.adj_lines])}")
+        if a.attrs is not None and len(a.attrs) > 0:
+            maj, min == a.attrs[0]
+            pen, brush = get_style('hydrography', 'areas', maj, min)
+        self.dc.SetPen(pen)
+        self.dc.SetBrush(brush)
+        # print(f"Area {a.id}: {', '.join([str(x) for x in a.adj_lines])}")
         points = [(x_win(long_), y_win(lat))
                       for long_, lat in a.get_points(self.dlg)]
         self.dc.DrawPolygon(points)
@@ -273,9 +319,9 @@ class DlgView(wx.Frame):
         self.dc.Clear()
         if self.dlg is None:
             return
-        self.dlg_draw(self.dlg, wx.Pen('black'), wx.Brush('black'))
+        self.dlg_draw(self.dlg)
         if self.dlg2 is not None:
-            self.dlg_draw(self.dlg2, wx.Pen('black'), wx.Brush('black'))
+            self.dlg_draw(self.dlg2)
         if self.line_nbr is not None:
             self.draw_line(self.line_nbr)
         if self.area_nbr is not None:

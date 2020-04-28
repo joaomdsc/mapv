@@ -35,3 +35,31 @@ Specify a file to be opened immediately when launching the program.
 Perform some styling on the "Summary" dialog box: bold labels, white
 backgrounds, thin border. Internal spacing (margins) around the text is
 still missing.
+
+--------------------------------------------------------------------------------
+
+* 2020/04/28
+
+Configure element styling based on attributes.
+
+The code must check before drawing each node, area, or line, if there are
+applicable attributes.
+
+Area attribute:
+  - enable/disable element
+  - pen (outline)
+  - brush (filling)
+  - transparency
+
+Line attribute:
+  - pen
+
+Categories
+RR RAILROADS
+MT PIPE TRANS LINES
+RD ROADS AND TRAILS
+
+Input: we have the category (hypdo, hydro, bound, RR-MT-RD, USPLS), the element
+type (node, area, line), and one or more attributes (major + minor).
+
+This must be mapped to the graphical characteristics of pen and brush.
