@@ -491,7 +491,7 @@ class Line():
 
 class DlgFile():
     def __init__(self, hdr1, hdr2, hdr3, hdr4, proj_params, file_to_map,
-                 ctrl_pts, categ, nodes, areas, lines):
+                 ctrl_pts, categ):
         self.hdr1 = hdr1
         self.hdr2 = hdr2
         self.hdr3 = hdr3
@@ -500,14 +500,14 @@ class DlgFile():
         self.file_to_map = file_to_map
         self.ctrl_pts = ctrl_pts
         self.categ = categ
-        self.nodes = nodes
-        self.areas = areas
-        self.lines = lines
+        self.nodes = None
+        self.areas = None
+        self.lines = None
 
     def __str__(self):
         return f'{self.hdr2.data_cell}, {self.hdr2.states}, {self.hdr2.section}'
     
-    def show(self):
+    def show_headers(self):
         s = ''
         s += f'{self.hdr1}\n'
         s += f'{self.hdr2}\n'
@@ -518,7 +518,7 @@ class DlgFile():
         for i in range(5):
             s += ', '.join([f'{self.proj_params[3*i+j]:1.8f}' for j in range(3)])
             s += '\n'
-            
+
         # Internal file-to-map projection transformation parameters
         s += ', '.join([f'{x:1.8f}' for x in self.file_to_map]) + '\n'
 
@@ -529,18 +529,19 @@ class DlgFile():
         # Data category identification records
         s += f'{self.categ}\n'
 
+        return s
+    
+    def show_all(self):
+        s = self.show_headers()
         # Nodes
         for x in self.nodes:
             s += f'{x}\n'
-
         # Areas
         for x in self.areas:
             s += f'{x}\n'
-
         # Lines
         for x in self.lines:
             s += f'{x}\n'
-            
         return s
 
     def show_tgt_areas(self):
@@ -718,10 +719,10 @@ def load_coords(f, nb_coords):
         return coords
         
 #-------------------------------------------------------------------------------
-# load_data - 
+# load_headers - 
 #-------------------------------------------------------------------------------
 
-def _load_data(f):
+def _load_headers(f):
     # Headers
     hdr1 = Header1.build(f.read(80))
     hdr2 = Header2.build(f.read(80))
@@ -748,6 +749,20 @@ def _load_data(f):
 
     # Data category identification records
     categ = DataCategory.build(f.read(80))
+       
+    # Return a partial DlgFile instance with the headers
+    return DlgFile(hdr1, hdr2, hdr3, hdr4, proj_params, file_to_map,
+                   ctrl_pts, categ)
+ 
+#-------------------------------------------------------------------------------
+# load_data - 
+#-------------------------------------------------------------------------------
+
+def _load_data(f):
+    # Get the headers first
+    dlg = _load_headers(f)
+
+    categ = dlg.categ
 
     # Node records
     nodes = []
@@ -764,7 +779,6 @@ def _load_data(f):
             x.attrs = load_attributes(f, x.nb_attr_pairs)
 
         nodes.append(x)
-    # nodes.reverse()
 
     # Area records
     areas = []
@@ -781,7 +795,6 @@ def _load_data(f):
             x.attrs = load_attributes(f, x.nb_attr_pairs)
 
         areas.append(x)
-    # areas.reverse()
 
     # Line records
     lines = []
@@ -799,9 +812,21 @@ def _load_data(f):
 
         lines.append(x)
 
-    # Return a DlgFile instance
-    return DlgFile(hdr1, hdr2, hdr3, hdr4, proj_params, file_to_map,
-                   ctrl_pts, categ, nodes, areas, lines)
+    # Return the completed DlgFile instance
+    dlg.nodes = nodes
+    dlg.areas = areas
+    dlg.lines = lines
+
+    return dlg
+
+def load_headers(filepath):
+    """Create python objects from just the file headers."""
+    if filepath.endswith('.gz'):
+        with gzip.open(filepath, 'rt') as f:
+            return _load_headers(f)
+    else:
+        with open(filepath, 'r') as f:
+            return _load_headers(f)
 
 def load_data(filepath):
     """Create python objects from file."""
@@ -841,8 +866,9 @@ if __name__ == '__main__':
     # print(dlg.presences())
     # print(f'Bbox: {dlg.bounding_box()}')
     # print()
-    # print(dlg.show())
-    print(dlg.show_attributes())
+    print(dlg.show_headers())
+    # print(dlg.show_all())
+    # print(dlg.show_attributes())
 
     # show_data(filepath)
     # print(dlg.show_tgt_areas())

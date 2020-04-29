@@ -63,3 +63,13 @@ Input: we have the category (hypdo, hydro, bound, RR-MT-RD, USPLS), the element
 type (node, area, line), and one or more attributes (major + minor).
 
 This must be mapped to the graphical characteristics of pen and brush.
+
+--------------------------------------------------------------------------------
+
+* 2020/04/29
+
+Add support for loading just the file headers and not the entire elements data.
+Add support for multiple simultaneous DLG-3 files loaded (drawn side-by-side).
+Pass a mapname as argument to launch mapv with half a quadrangle loaded.
+Remove the attempt at doing MVC, not worth the trouble here because the model
+never changes independently of the view.

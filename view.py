@@ -2,10 +2,10 @@
 
 import os
 import wx
-from pubsub import pub
 from panel import MainPanel
 from summary import SummaryDialog
 from style import get_style
+from dlg import load_data
 
 #-------------------------------------------------------------------------------
 # I want stdout to be unbuffered, always
@@ -29,7 +29,9 @@ sys.stdout = Unbuffered(sys.stdout)
 
 class DlgView(wx.Frame):
 
-    def __init__(self, filepath=None):
+    def __init__(self, filepath=None, mapname=None):
+        """mapname is the mapname-e_STATE identifier described in DLG 00README.
+        """
         super(DlgView, self).__init__(None, -1, title='Mapv', size=(900, 600))
 
         self.SetTitle('Mapv')
@@ -39,17 +41,18 @@ class DlgView(wx.Frame):
 
         # Main panel
         self.panel = MainPanel(self, parent_frame=self)
+        self.panel.Bind(wx.EVT_SIZE, self.on_size)
         self.panel.Bind(wx.EVT_PAINT, self.on_paint)
 
         # The view needs its model, so it can show it
-        self.dlg = None  # open
-        self.dlg2 = None  # add
+        self.dlgs = None
+
+        # Transformation is (x_win, y_win)
+        self.t = None
+        
         self.file = None
         self.line_nbr = None
         self.area_nbr = None
-
-        # Listen to model updates
-        pub.subscribe(self.updt_listener, 'model_updates')
 
         # Misc
         self.request = ''
@@ -58,9 +61,30 @@ class DlgView(wx.Frame):
         if filepath is not None:
             self.set_dir(os.path.dirname(filepath))
             self.file = os.path.basename(filepath)
-            topic = 'view_requests'
-            self.request = 'open'
-            pub.sendMessage('view_requests', arg=filepath)
+            
+            self.dlgs = [load_data(filepath)]
+
+        if mapname is not None:
+            path = r'C:\x\data\dds.cr.usgs.gov\pub\data\DLG\100K'
+            path = os.path.join(path, mapname[0].upper())
+            path = os.path.join(path, mapname)
+
+            if not os.path.isdir(path):
+                print(f"Can't find '{mapname}'")
+            else:
+                self.dlgs = []
+                for f in os.listdir(path):
+                    if f != 'hydrography':
+                        continue
+                    layer = os.path.join(path, f)
+                    if os.path.isdir(layer):
+                        for g in os.listdir(layer):
+                            if g.endswith('.opt.gz'):
+                                filepath = os.path.join(layer, g)
+                                try:
+                                    self.dlgs.append(load_data(filepath))
+                                except ValueError:
+                                    pass
 
     def show_summary(self, e):
         if self.dlg is None:
@@ -80,10 +104,10 @@ class DlgView(wx.Frame):
             
     def create_menus(self):
         fm = wx.Menu()
-        mi = fm.Append(wx.ID_OPEN, '&Open', 'Open a DLG-3 file')
+        mi = fm.Append(wx.ID_OPEN, '&New', 'Open a new DLG-3 file')
+        self.Bind(wx.EVT_MENU, self.on_new, mi)
+        mi = fm.Append(wx.ID_ANY, '&Open', 'Open another DLG-3 file on top')
         self.Bind(wx.EVT_MENU, self.on_open, mi)
-        mi = fm.Append(wx.ID_ANY, '&Add', 'Add a DLG-3 file on top')
-        self.Bind(wx.EVT_MENU, self.on_add, mi)
         mi = fm.Append(wx.ID_ANY, 'Refresh', 'Clear and refresh')
         self.Bind(wx.EVT_MENU, self.on_refresh, mi)
         mi = fm.Append(wx.ID_ANY, 'Summary', 'Show a summary of file')
@@ -117,35 +141,34 @@ class DlgView(wx.Frame):
         with open(filepath, 'w') as f:
             f.write(dir)
 
-    def on_open(self, e):
-        d = wx.FileDialog(self, 'Choose a file to open', self.get_dir(), '',
+    def on_new(self, e):
+        d = wx.FileDialog(self, 'Choose a new file to open', self.get_dir(), '',
                           '*.*', wx.FD_OPEN)
         if d.ShowModal() == wx.ID_OK:
             dir = d.GetDirectory()
             self.set_dir(dir)
-            # FIXME self.file should be set by the update listener
             self.file = d.GetFilename()
             filepath = os.path.join(dir, self.file)
-            topic = 'view_requests'
-            self.request = 'open'
-            pub.sendMessage('view_requests', arg=filepath)
+
+            self.dlgs = [load_data(filepath)]
+            self.Refresh()
         d.Destroy()
 
-    def on_add(self, e):
-        d = wx.FileDialog(self, 'Add a file on top', self.get_dir(), '', '*.*',
-                          wx.FD_OPEN)
+    def on_open(self, e):
+        d = wx.FileDialog(self, 'Open another file on top', self.get_dir(), '',
+                          '*.*', wx.FD_OPEN)
         if d.ShowModal() == wx.ID_OK:
             dir = d.GetDirectory()
             self.set_dir(dir)
             file = d.GetFilename()
             filepath = os.path.join(dir, file)
-            topic = 'view_requests'
-            self.request = 'add'
-            pub.sendMessage('view_requests', arg=filepath)
+
+            self.dlgs.append(load_data(filepath))
+            self.Refresh()
         d.Destroy()
 
     def updt_listener(self, arg):
-        if self.request == 'open':
+        if self.request == 'new':
             self.dlg = arg
             s = str(self.dlg)
         else:
@@ -168,15 +191,21 @@ class DlgView(wx.Frame):
     def on_quit(self, e):
         self.Close(True)
 
+    # FIXME move this to a helpers module with unit tests
     def bbox_union(self, b1, b2):
         min_lat = b1[0] if b1[0] < b2[0] else b2[0]
-        max_lat = b1[1] if b1[1] < b2[1] else b2[1]
+        max_lat = b1[1] if b1[1] > b2[1] else b2[1]
         min_long = b1[2] if b1[2] < b2[2] else b2[2]
-        max_long = b1[3] if b1[3] < b2[3] else b2[3]
+        max_long = b1[3] if b1[3] > b2[3] else b2[3]
         return min_lat, max_lat, min_long, max_long
         
     def get_transform(self):
-        """Get the transformation functions from map to drawing."""
+        """Get the transformation functions from map to drawing.
+
+        This changes on two occasions:
+          - when another DLG file is added
+          - when the window is resized
+          """
         
         # Size of device context
         w_wx, h_wx = self.dc.GetSize()
@@ -188,13 +217,14 @@ class DlgView(wx.Frame):
         ratio_draw = w_draw/h_draw
 
         # Map proportions
-        if self.dlg2 is None:
-            # self.dlg is the one defining the global bounding box
-            min_lat, max_lat, min_long, max_long = self.dlg.bounding_box()
+        if len(self.dlgs) == 1:
+            min_lat, max_lat, min_long, max_long = self.dlgs[0].bounding_box()
         else:
-            # We're combining two quad's
-            min_lat, max_lat, min_long, max_long = self.bbox_union(
-                self.dlg.bounding_box(), self.dlg2.bounding_box())
+            box = self.dlgs[0].bounding_box()
+            for d in self.dlgs[1:]:
+               box =  self.bbox_union(box, d.bounding_box())
+            # Note the trailing comma that makes it a tuple
+            min_lat, max_lat, min_long, max_long = *box,
             
         w_map = max_long - min_long
         h_map = max_lat - min_lat
@@ -226,8 +256,7 @@ class DlgView(wx.Frame):
         return x_win, y_win
         
     def dlg_draw(self, dlg):
-        # Transforming coordinates from map to drawing
-        x_win, y_win = self.get_transform()
+        x_win, y_win = self.t
 
         # Draw the lines in black
         default_pen = wx.Pen('black')
@@ -273,8 +302,7 @@ class DlgView(wx.Frame):
         self.Refresh()
 
     def draw_line(self, line_nbr):
-        # Transforming coordinates from map to drawing
-        x_win, y_win = self.get_transform()
+        x_win, y_win = self.t
 
         pen, brush = wx.Pen('black'), wx.Brush('black')
         line = self.dlg.lines[line_nbr - 1]
@@ -298,8 +326,7 @@ class DlgView(wx.Frame):
         self.Refresh()
 
     def draw_area(self, area_nbr):
-        # Transforming coordinates from map to drawing
-        x_win, y_win = self.get_transform()
+        x_win, y_win = self.t
         
         pen, brush = wx.Pen('red'), wx.Brush('orange')
         a = self.dlg.areas[area_nbr-1]
@@ -313,15 +340,27 @@ class DlgView(wx.Frame):
                       for long_, lat in a.get_points(self.dlg)]
         self.dc.DrawPolygon(points)
 
+    def on_size(self, e):
+        self.Refresh()
+
     def on_paint(self, e):
         self.dc = wx.PaintDC(self.panel)
         self.dc.SetBackground(wx.Brush('white'))
         self.dc.Clear()
-        if self.dlg is None:
+
+        # If there's no data yet, nothing to paint
+        if self.dlgs is None:
             return
-        self.dlg_draw(self.dlg)
-        if self.dlg2 is not None:
-            self.dlg_draw(self.dlg2)
+        
+        # Transform requires a wx.DC
+        self.t = self.get_transform()
+
+        # Draw all DLGs
+        for dlg in self.dlgs:
+            self.dlg_draw(dlg)
+            
+        # Special requests
+        # FIXME line/area is no longer enough when there are several quad's open
         if self.line_nbr is not None:
             self.draw_line(self.line_nbr)
         if self.area_nbr is not None:

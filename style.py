@@ -36,7 +36,9 @@ map_style = dict(
                 ),
                 '0116': dict(
                     description='Bays, estuaries, gulfs, oceans, seas',
-                    brush=dict(color='sky blue'),
+                    brush=dict(color=wx.Colour(214, 237, 251)),
+                    # brush=dict(color=wx.Colour(214, 237, 251)),  # light blue 1
+                    # brush=dict(color=wx.Colour(204, 230, 255)),  # light blue 2
                 ),
             },
         },
@@ -56,8 +58,8 @@ map_style = dict(
             '050': {
                 '0412': dict(
                     description='Stream',
-                    pen=dict(color='sky blue'),
-                    brush=dict(color='sky blue'),
+                    pen=dict(color=wx.Colour(214, 237, 251)),
+                    brush=dict(color=wx.Colour(214, 237, 251)),
                 ),
                 '0414': dict(
                     description='Ditch or canal',
@@ -71,7 +73,7 @@ map_style = dict(
                 ),
                 '0421': dict(
                     description='Lake or pond',
-                    brush=dict(color='light blue'),
+                    brush=dict(color=wx.Colour(214, 237, 251)),
                 ),
                 '0604': dict(
                     description='Tunnel',
