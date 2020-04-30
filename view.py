@@ -6,6 +6,7 @@ from panel import MainPanel
 from summary import SummaryDialog
 from style import get_style
 from dlg import load_data
+from usgs import Usgs
 
 #-------------------------------------------------------------------------------
 # I want stdout to be unbuffered, always
@@ -57,6 +58,10 @@ class DlgView(wx.Frame):
         # Misc
         self.request = ''
 
+        # USGS geocoded names
+        self.usgs = Usgs()
+        self.name_points = self.usgs.get_name_coords()
+
         # Initially open file
         if filepath is not None:
             self.set_dir(os.path.dirname(filepath))
@@ -68,6 +73,8 @@ class DlgView(wx.Frame):
             path = r'C:\x\data\dds.cr.usgs.gov\pub\data\DLG\100K'
             path = os.path.join(path, mapname[0].upper())
             path = os.path.join(path, mapname)
+
+            print(f'mapname="{mapname}", path="{path}"')
 
             if not os.path.isdir(path):
                 print(f"Can't find '{mapname}'")
@@ -199,7 +206,7 @@ class DlgView(wx.Frame):
         max_long = b1[3] if b1[3] > b2[3] else b2[3]
         return min_lat, max_lat, min_long, max_long
         
-    def get_transform(self):
+    def get_transform(self, usgs=None):
         """Get the transformation functions from map to drawing.
 
         This changes on two occasions:
@@ -217,6 +224,9 @@ class DlgView(wx.Frame):
         ratio_draw = w_draw/h_draw
 
         # Map proportions
+        
+        # FIXME calculating the bounding box is the map's responsibility, this
+        # should move out of here. We want a single model/map method for bbox.
         if len(self.dlgs) == 1:
             min_lat, max_lat, min_long, max_long = self.dlgs[0].bounding_box()
         else:
@@ -225,11 +235,15 @@ class DlgView(wx.Frame):
                box =  self.bbox_union(box, d.bounding_box())
             # Note the trailing comma that makes it a tuple
             min_lat, max_lat, min_long, max_long = *box,
+
+        # USGS geocoded names
+        if usgs is not None:
+            min_lat, max_lat, min_long, max_long = self.usgs.bbox()
             
         w_map = max_long - min_long
         h_map = max_lat - min_lat
         ratio_map = w_map/h_map
-        
+            
         if ratio_draw > ratio_map:
             # Drawable area more landscapish than the map quad, fit height first
             k = h_draw/h_map
@@ -244,7 +258,7 @@ class DlgView(wx.Frame):
             h_win = k*h_map  # Height of drawing window must be computed
             vert_offset = (h_draw - h_win)/2
             orig_win = (pad, pad + vert_offset)
-            
+    
         def x_win(long_):
             # Axis direction: longitude grows to the right
             return int(round(orig_win[0] + k*(long_ - min_long)))
@@ -340,6 +354,14 @@ class DlgView(wx.Frame):
                       for long_, lat in a.get_points(self.dlg)]
         self.dc.DrawPolygon(points)
 
+    def draw_names(self):
+        x_win, y_win = self.t
+
+        self.dc.SetPen(wx.Pen('black'))
+        self.dc.SetBrush(wx.Brush('red'))
+        for lng, lat in self.name_points:
+            self.dc.DrawCircle(x_win(lng), y_win(lat), 3)
+
     def on_size(self, e):
         self.Refresh()
 
@@ -347,13 +369,18 @@ class DlgView(wx.Frame):
         self.dc = wx.PaintDC(self.panel)
         self.dc.SetBackground(wx.Brush('white'))
         self.dc.Clear()
-
+            
         # If there's no data yet, nothing to paint
         if self.dlgs is None:
             return
         
         # Transform requires a wx.DC
-        self.t = self.get_transform()
+        self.t = self.get_transform(usgs=self.usgs is not None)
+        # self.t = self.get_transform()
+
+        # USGS geocoded names
+        if self.usgs is not None:
+            self.draw_names()
 
         # Draw all DLGs
         for dlg in self.dlgs:

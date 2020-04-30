@@ -1,8 +1,10 @@
 # category.py
 
-import os
-import sys
-import dlg
+"""Run this module with the pathname of a mapname-e_STATE/layer directory to
+get a list and count of the attributes present in the 4 or 16 files of data for
+this layer.  """
+
+import os import sys import dlg
 
 categories = [
     'boundaries',
@@ -18,9 +20,12 @@ categories = [
 
 def category_attr_counts(dirpath):
     """Read all the files under this category (half a quad)"""
+    if dirpath[-1] == '/':
+        # Remove trailing slash, otherwise basename will be empty
+        dirpath = dirpath[:-1]
     base = os.path.basename(dirpath)
     if base not in categories:
-        print(f'Unknown categrory "{base}", exiting.')
+        print(f'Unknown category "{base}", exiting.')
         exit()
 
     # Dictionaries for cumulating attribute counts 

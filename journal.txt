@@ -73,3 +73,81 @@ Add support for multiple simultaneous DLG-3 files loaded (drawn side-by-side).
 Pass a mapname as argument to launch mapv with half a quadrangle loaded.
 Remove the attempt at doing MVC, not worth the trouble here because the model
 never changes independently of the view.
+
+--------------------------------------------------------------------------------
+
+* 2020/04/30
+
+Data User Guide: "The DLG's are distributed in groups of files that make up a
+30- x 30- minute area of coverage representing the selected category of
+information in the east half or west half of a 1:100,000-scale source map".
+
+OOREADME.txt:
+
+    DIRECTORY STRUCTURE
+       The directory structure for the 1:100,000-Scale DLG FTP account is 
+       defined as follows:  A-Z/mapname-e_STATE/layer 
+    
+    where:
+          A-Z  = The first character of the map name
+       mapname = The name of the 100,000-scale map
+             e = The east or west half of the map (30- x 30- minute area) 
+         STATE = The two character state code used to distinguish between
+                 duplicate map names  
+         layer = The category of data (such as hydrography or transportation)
+    
+    Example:  H/harrison-e_AR/transportation is the location for all 
+              transportation layers in the east half of the Harrison, 
+              Arkansas quadrangle.
+
+boston-e_MA covers a 30- x 30- minute area, the east half of the Boston,
+Massachusetts quadrangle.
+
+FILE EXTENT:
+       Each 30-minute area consists of a varying number of DLG files
+       depending on the layer and the feature density. If the feature  
+       density is such that the file size exceeded the limitations of 
+       the processing programs, the 30-minute area is covered by sixteen
+       7.5 minute files.
+
+In the case of boston-e_MA, every layer has 4 files except RD which has 16.
+
+       The size and sequence number of a file is located in columns 64-66 of 
+       the file's header record.  The format of this 3-digit code is defined 
+       as follows:  XNN 
+    where:
+       X is a single letter indicating size
+          F = Fifteen (15) minute block
+          S = Seven and one half (7.5) minute block   
+     
+       NN represents a two-digit number indicating the specific quad.  The 
+       chart below illustrates this division with the sections labeled with
+       the code that would appear in column 64-66 of the header record.
+    
+       ---------------------------------------------------------------
+      |               |               |               |               |
+      |      F01      |      F02      |      F03      |      F04      |
+      |               |               |               |               |
+      |---------------|---------------|---------------|---------------|
+      |               |               |               |               |
+      |      F05      |      F06      |      F07      |      F08      | 
+      |               |               |               |               |
+       ---------------------------------------------------------------
+       A 1:100,000-scale quad divided into eight 15-minute quads, 4 per 
+       30-minute area.
+    
+       --------------------------------------------------------------- 
+      |  S01  |  S02  |  S03  |  S04  |  S05  |  S06  |  S07  |  S08  |
+      |       |       |       |       |       |       |       |       |
+       ---------------------------------------------------------------
+      |  S09  |  S10  |  S11  |  S12  |  S13  |  S14  |  S15  |  S16  | 
+      |       |       |       |       |       |       |       |       |
+       ---------------------------------------------------------------
+      |  S17  |  S18  |  S19  |  S20  |  S21  |  S22  |  S23  |  S24  | 
+      |       |       |       |       |       |       |       |       |
+       ---------------------------------------------------------------
+      |  S25  |  S26  |  S27  |  S28  |  S29  |  S30  |  S31  |  S32  | 
+      |       |       |       |       |       |       |       |       |
+       ---------------------------------------------------------------
+       A 1:100,000-scale quad divided into 32 7.5-minute quads, 16 per 
+       30-minute area.

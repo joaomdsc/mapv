@@ -572,6 +572,7 @@ class DlgFile():
         max_lat = max_long = -99_999_999.00
         for l in a.adj_lines:
             # Line ids count from 1, not 0
+            # FIXME expose the iterable sowe can factor this code
             for long_, lat in self.lines[abs(l)-1].coords:
                 if lat < min_lat:
                     min_lat = lat
@@ -587,9 +588,9 @@ class DlgFile():
     def target(self, min_lat_pc, max_lat_pc, min_long_pc, max_long_pc):
         """Args are percentage of min_lat, max_lat, etc, applied to bbox.
 
-        I'm trying to identify an area that appears to be in the first
-        (lowest) 10% of longitude (in the displayed map) and in the
-        middle tier of latitude. So I'll be calling
+        I'm trying to identify an area that appears to be (by looking at
+        the drawing on the screen) in the first (lowest) 10% of
+        longitude and in the middle tier of latitude. So I'll be calling
 
             target(33, 66, 0, 10)
             
