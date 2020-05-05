@@ -65,6 +65,7 @@ class DlgView(wx.Frame):
         # Initially open file
         if filepath is not None:
             set_dir(os.path.dirname(filepath))
+            self.model = Dlg3Model()
             self.model.open(filepath)
 
         if mapname is not None:
@@ -238,48 +239,47 @@ class DlgView(wx.Frame):
 
     def dlg_draw(self, dlg):
         x_win, y_win = self.t
-
-        # default_pen = wx.Pen('black')
-        # default_brush = wx.Brush('black')
         
-        # Draw areas: if an area has islands, only the area itself will be
-        # painted, not its islands. However, the islands also appear by
-        # themselves in the list, so they will get painted, but the order is
-        # not guaranteed. If the island is painted first, painting the
-        # enclosing area will overwrite the island.
+        # Draw areas
         for a in dlg.areas:
             self.draw_area(dlg, a)
 
-        # Areas with islands: get_points ignores the islands, so the previous
-        # code painted the entire polygon, overwriting the islands. The
-        # following code now paints the islands themselves. FIXME there is
-        # duplication here, islands are being painted twice.
+        # Draw lines
+        for line in dlg.lines:
+            self.draw_line(dlg, line)
 
-        # # Draw islands
-        # for a in dlg.island_areas():
-        #     self.draw_area(dlg, a)
+    def on_draw_area(self, area_nbr):
+        self.model.area = (self.model.dlgs[0].areas[area_nbr-1]
+                           if area_nbr != -1 else None)
+        self.bitmap_brush = nbr_brush(area_nbr)
+        self.Refresh()
 
-        # Draw the lines in black
-        default_brush = wx.Brush('black')
-        for l in dlg.lines:
-            if len(l.coords) > 1:
-                # l.coords is a list of (long, lat) couples
-                pen = brush = None
-                if l.attrs is not None and len(l.attrs) > 0:
-                    maj, min = l.attrs[0]
-                    pen, brush = get_style('hydrography', 'lines', maj, min)
-                    
-                self.dc.SetPen(self.pen if pen is None else pen)
-                self.dc.SetBrush(self.brush if brush is None else brush)
-                
-                prev_long, prev_lat = l.coords[0]
-                for long_, lat in l.coords[1:]:
-                    # Draw line segment from prev to current
-                    self.dc.DrawLine(x_win(prev_long), y_win(prev_lat),
-                                x_win(long_), y_win(lat))
-                    prev_lat = lat
-                    prev_long = long_
+    def draw_area(self, dlg, area, pen=None, brush=None):
+        """Paint the area's polygon, and all the areas inside its islands."""
+        x_win, y_win = self.t
 
+        # Draw the area's polygon with its own style 
+        attr_pen = attr_brush = None
+        if area.attrs is not None and len(area.attrs) > 0:
+            maj, min = area.attrs[0]
+            attr_pen, attr_brush = get_style('hydrography', 'areas', maj, min)
+
+        # Priority: function argument, then attributes, then default
+        self.dc.SetPen(pen if pen is not None else
+                 attr_pen if attr_pen is not None else
+                 self.pen)
+        self.dc.SetBrush(brush if brush is not None else
+                 attr_brush if attr_brush is not None else
+                 self.brush)
+        
+        points = [(x_win(long_), y_win(lat))
+                      for long_, lat in area.get_points(dlg)]
+        self.dc.DrawPolygon(points)
+
+        # Now draw all the areas inside the islands
+        for a in area.inner_areas():
+            self.draw_area(dlg, a)
+ 
     def on_draw_line(self, line_nbr):
         self.model.line = self.model.dlgs[0].lines[line_nbr-1] if line_nbr != -1 else None
         self.Refresh()
@@ -287,17 +287,17 @@ class DlgView(wx.Frame):
     def draw_line(self, dlg, line, pen=None, brush=None):
         x_win, y_win = self.t
 
-        a_pen = a_brush = None
+        attr_pen = attr_brush = None
         if line.attrs is not None and len(line.attrs) > 0:
             maj, min = line.attrs[0]
-            a_pen, a_brush = get_style('hydrography', 'lines', maj, min)
+            attr_pen, attr_brush = get_style('hydrography', 'lines', maj, min)
             
         # Priority: function argument, then attributes, then default
         self.dc.SetPen(pen if pen is not None else
-                 a_pen if a_pen is not None else
+                 attr_pen if attr_pen is not None else
                  self.pen)
         self.dc.SetBrush(brush if brush is not None else
-                 a_brush if a_brush is not None else
+                 attr_brush if attr_brush is not None else
                  self.brush)
         
         if len(line.coords) > 1:
@@ -309,35 +309,6 @@ class DlgView(wx.Frame):
                             x_win(long_), y_win(lat))
                 prev_lat = lat
                 prev_long = long_
-
-    def on_draw_area(self, area_nbr):
-        self.model.area = self.model.dlgs[0].areas[area_nbr-1] if area_nbr != -1 else None
-        self.bitmap_brush = nbr_brush(area_nbr)
-        self.Refresh()
-
-    def draw_area(self, dlg, a, pen=None, brush=None):
-        x_win, y_win = self.t
-
-        a_pen = a_brush = None
-        if a.attrs is not None and len(a.attrs) > 0:
-            maj, min = a.attrs[0]
-            a_pen, a_brush = get_style('hydrography', 'areas', maj, min)
-
-        # Priority: function argument, then attributes, then default
-        self.dc.SetPen(pen if pen is not None else
-                 a_pen if a_pen is not None else
-                 self.pen)
-        self.dc.SetBrush(brush if brush is not None else
-                 a_brush if a_brush is not None else
-                 self.brush)
-        
-        points = [(x_win(long_), y_win(lat))
-                      for long_, lat in a.get_points(dlg)]
-        self.dc.DrawPolygon(points)
-
-        # Now draw your islands
-        for isle_area in a.island_areas(dlg):
-            self.draw_area(dlg, isle_area)
 
     def draw_usgs(self, model):
         x_win, y_win = self.t
@@ -363,33 +334,6 @@ class DlgView(wx.Frame):
             x = int(round((box_w - w)/2))
             y = int(round((box_h - h)/2))
             self.dc.DrawText(str(zone), SW[0] + x, NW[1] + y)
-
-        # # FIXME make a function with the iterator/generator s a parameter
-
-        # # Draw rectangles that hold a named place from the data
-        # for mapname, zone, box in model.named_rects():
-        #     print(f'Data: {mapname} {box}')
-        #     min_lat, max_lat, min_long, max_long = box
-        #     SW = x_win(min_long), y_win(min_lat)
-        #     NW = x_win(min_long), y_win(max_lat)
-        #     NE = x_win(max_long), y_win(max_lat)
-        #     SE = x_win(max_long), y_win(min_lat)
-        #     pen = self.dc.GetPen()
-        #     self.dc.SetPen(wx.Pen('sky blue'))
-        #     self.dc.DrawPolygon([SW, NW, NE, SE])
-        #     self.dc.SetPen(pen)
-
-        #     # Box dimensions
-        #     box_w = SE[0] - SW[0]
-        #     box_h = SW[1] - NW[1]
-            
-        #     # Write something inside the box
-        #     self.dc.DrawText(mapname, SW[0] + 5, NW[1] + 5)
-
-        #     w, h = self.dc.GetTextExtent(str(zone))
-        #     x = int(round((box_w - w)/2))
-        #     y = int(round((box_h - h)/2))
-        #     self.dc.DrawText(str(zone), SW[0] + x, NW[1] + y)
 
     def draw_names(self):
         x_win, y_win = self.t
@@ -452,8 +396,8 @@ class DlgView(wx.Frame):
         self.t = self.get_transform()
 
         if self.model.kind == 'Usgs':
-            # models should expose iterators/generators on polygons, lines,
-            # nodes.
+            # Models should expose iterators/generators on polygons, lines,
+            # nodes, so that any model can be drawn.
             self.draw_usgs(self.model)
             return
 

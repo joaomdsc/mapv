@@ -445,52 +445,25 @@ class NodeOrArea():
             points += x
         return points
 
-    def island_areas(self, dlg):
-        """Generate the list of areas """
-        if self.type == 'N':
-            return None
-        if self.nb_islands == 0:
-            return []
+    def inner_areas(self):
+        """Toplevel inner sub-areas inside every one of this area's islands."""
+        for isle in self.islands:
+            for a in isle.inner_toplevel_areas():
+                yield a
 
-        if self.nb_islands == 1:
-            i = self.adj_line_ids.index(0)
-            l = self.adj_line_ids[i+1]
-            line = dlg.lines[abs(l) - 1]
-            island_indexes = [x for x in [line.left_area, line.right_area] if x != self.id]
-            return [dlg.areas[x-1] for x in sorted(island_indexes)]
-
-        # Indexes of zeroes, introduce island sublists
-        zeroes = [i for i, e in enumerate(self.adj_line_ids) if e == 0]
-        # print(f'Area={self.id}, nzeroes={len(zeroes)}')
-        zeroes += [len(self.adj_line_ids)]  # Add a final zero
-        island_indexes = []
-        z_prev = zeroes[0]
-        for z in zeroes[1:]:
-            line_areas = None
-            for l in self.adj_line_ids[z_prev+1:z]:
-                # print(f'Area={self.id}, line: l={l}')
-                # For each line, left and right area (if we ignore the order)
-                # must be the same, and one of them is the containing area, the
-                # other one is the island. We check this. FIXME raise exception.
-                line = dlg.lines[abs(l) - 1]
-                x = sorted([line.left_area, line.right_area])
-                if line_areas is None:
-                    line_areas = x
-                elif x != line_areas:
-                    # print(f'Oops: area={self.id}, line={l}, line_areas={line_areas}, x={x}')
-                    pass
-            island_indexes.append([x for x in line_areas if x != self.id][0])
-            z_prev = z
-        return [dlg.areas[x-1] for x in sorted(island_indexes)]
-        
     def outside_areas(self):
-        """Outside neighboring areas."""
+        """Outside neighboring areas.
+
+        Areas that neighbor outside the current area, as opposed to neighboring
+        areas inside islands inside the current area.
+
+        """
         return self.dlg.beyond(self, zero_stop(self.adj_line_ids))
 
     def create_islands(self):
-        # Each island_border is a list of line_ids that delimit an island
-        self.islands = [Island(self, island_border)
-                            for island_border in between_zeroes(self.adj_line_ids)]
+        # Each border is a list of line_ids that delimit an island
+        self.islands = [Island(self, border)
+                            for border in between_zeroes(self.adj_line_ids)]
 
 #-------------------------------------------------------------------------------
 # Line identification records
@@ -575,37 +548,37 @@ class Island():
     A double recursion is necessary to find all the areas in an island:
       - over all the neighboring areas,
       - over all the islands
-"""
+    """
     def __init__(self, outside_area, island_border):
         """Initialize a new island.
 
         island_border is a list of line ids
-"""
+        """
         self.outside_area = outside_area
         self.island_border = island_border
 
         # These are just the border areas
-        self.inner_areas = outside_area.dlg.beyond(outside_area,
+        self.inner_border_areas = outside_area.dlg.beyond(outside_area,
                                                    self.island_border)
 
     def __str__(self):
         s = ''
         s += f"    Border: {', '.join([str(x) for x in self.island_border])}\n"
-        s += (f"    Inner border areas: {', '.join([str(x.id) for x in self.inner_areas])}\n")
-        s += (f"    Toplevel sub-areas: {', '.join([str(x.id) for x in self.toplevel_sub_areas()])}")
+        s += (f"    Inner border areas: {', '.join([str(x.id) for x in self.inner_border_areas])}\n")
+        s += (f"    Inner toplevel areas: {', '.join([str(x.id) for x in self.inner_toplevel_areas()])}")
         return s
 
-    def neighbor_closure(self, area, dont_visit, result):
+    def neighbors(self, area, dont_visit, result):
         dont_visit.add(area)
         if not area in result:
             result.append(area)
         for a in area.outside_areas():
             if a in dont_visit:
                 continue
-            result = self.neighbor_closure(a, dont_visit, result)
+            result = self.neighbors(a, dont_visit, result)
         return result
             
-    def toplevel_sub_areas(self):
+    def inner_toplevel_areas(self):
         # FIXME can this be turned into a generator ?
         """Get neighboring areas by moving inside into the island.
 
@@ -614,17 +587,11 @@ class Island():
         list of all such areas. What it doesn't do is look into inner
         areas' islands, if any.
         """
-        # Resulting array 
-        result = self.inner_areas
+        result = self.inner_border_areas
         dont_visit = set([self.outside_area])
-        for area in self.inner_areas:
-            result = self.neighbor_closure(area, dont_visit, result)
+        for area in self.inner_border_areas:
+            result = self.neighbors(area, dont_visit, result)
         return result
-
-    def islands(self):
-        for area in toplevel_sub_areas(self):
-            if area.nb_islands > 0:
-                pass
 
 #-------------------------------------------------------------------------------
 # Node - 
@@ -638,8 +605,8 @@ class Node:
 
     def show_node(self, level):
         indent = ' '*4
-        print(f"{indent*level}{self.area.id if self.area is not None else ''}")
         for k in self.kids:
+            print(f"{indent*level}{k.area.id}")
             k.show_node(level+1)
 
 #-------------------------------------------------------------------------------
@@ -793,7 +760,7 @@ class DlgFile():
             
         to get a bounding box in map coordinates, and then test each
         area's representative point for inclusion.
-"""
+        """
         # This quad's bounding box in map coordinates
         min_lat, max_lat, min_long, max_long = self.bounding_box()
         lat_height = max_lat - min_lat
@@ -812,7 +779,7 @@ class DlgFile():
 
         pt = (long, lat)
         tgt = min_lat, max_lat, min_long, max_long
-"""
+        """
         return tgt[0] <= pt[1] <= tgt[1] and tgt[2] <= pt[0] <= tgt[3]
 
     def show_attributes(self):
@@ -863,6 +830,7 @@ class DlgFile():
         return r
 
     def areas_with_islands(self):
+        """Areas in this DLG-3 file that have islands."""
         for area in self.areas:
             if area.nb_islands > 0:
                 yield area
@@ -871,10 +839,12 @@ class DlgFile():
         """Recursively build the island tree."""
         n = Node(area)
         for isle in area.islands:
-            for a in isle.toplevel_sub_areas():
+            for a in isle.inner_toplevel_areas():
                 if a.nb_islands > 0:
                     # a becomes a node in the tree
                     n.kids.append(self.build_tree(a))
+                else:
+                    n.kids.append(Node(a))
         return n
 
     def island_tree(self):
@@ -1113,21 +1083,3 @@ if __name__ == '__main__':
 
     # show_data(filepath)
     # print(dlg.show_tgt_areas())
-
-    # print(dlg.island_areas())
-
-    # # Islands
-    # for area in sorted(list(dlg.areas_with_islands()),
-    #                    key=lambda a: a.nb_islands, reverse=True):
-    #     print(f'Area {area.id}: ({area.nb_islands} islands)')
-    #     for i, isle in enumerate(area.islands):
-    #         print(f'  Island {i}:')
-    #         print(isle)
-
-    # print()
-    # print(f'There are {len(list(dlg.areas_with_islands()))} areas'
-    #       + ' with islands.')
-
-    # print('Island tree')
-    # root = dlg.island_tree()
-    # root.show_node(0)

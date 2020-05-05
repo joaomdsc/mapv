@@ -151,3 +151,196 @@ In the case of boston-e_MA, every layer has 4 files except RD which has 16.
        ---------------------------------------------------------------
        A 1:100,000-scale quad divided into 32 7.5-minute quads, 16 per 
        30-minute area.
+
+** Various parameters in the DLG files
+
+Data User Guide:
+
+                     APPENDIX B. --Optional DLG Distribution Format
+        	     (Record Contents)
+
+Record
+Number     Contents                   Comment
+
+5-9        Projection parameters      Three parameters on each of
+           for map transformation     5 records {see Appendix 2-4).
+
+10         Internal file-to-map       X, Y coordinates resulting from this     
+           projection transformation  transformation will be expressed in the  
+           parameters                 appropriate ground planimetric coordinate
+                                      system. If the x, y coordinates are      
+                                      already in the ground coordinate system, 
+                                      the projection parameters will be:       
+                                      A1=1.0, A2=0.0, A3=0.0, and A4=0.0.      
+
+The code in dlg.py parses these records in the _load_headers() function. The
+data from records 5-9 and record 10 are put respectively in the "proj_params"
+and "file_to_map" array members of the DlgFile structure.
+
+The following appendix details the projection parameters:
+
+                     APPENDIX C.--Map Projection Parameters
+                     Universal Transverse Mercator (UTM)
+
+    The standard and optional DLG distribution formats include 15 fields
+    reserved for map projection parameters. These parameters are typically used
+    as input for a coordinate transformation package such as the USGS General
+    Cartographic Transformation Package (GCTP).
+    
+    When the ground coordinate system of a DLG is the Universal Transverse
+    Mercator system, as in the case for all DLG's digitized from 1:100,000-
+    scale maps, only the first two of the 15 parameter fields are used:
+    
+    1.     Longitude of any point in UTM zone.     Normally placed at the
+    2.     Latitude of any point in UTM zone.      center of the DLG cell.
+    
+    3-15.  Not used (=0).
+
+    A transformation to or from UTM using GCTP can be controlled by specifying
+    the UTM zone or by supplying the geographic coordinate in parameters 1 and
+    2, from which the UTM zone is computed by GCTP. In a DLG file, the
+    parameters are encoded as packed, degrees - minutes- seconds (OMS) as
+    follows:
+    
+    degrees * 1000000 + minutes * 1000 + seconds
+    
+    Example: If degrees = +50, minutes = 30, and seconds = 36.25, then the
+    parameter value is 50030036.25 stored as a REAL*8 variable, and
+    "bb0.500300362500000D 08" encoded in FORTRAN 024.15 format.
+    
+In the case of the boston-e_MA file F04, the parameter values are:
+
+1.  -0.710070300000000D+08 (lng) = -71 007 030
+2.   0.420220300000000D+08 (lat) =  42 022 030
+
+which (according to the above formula) correspond to 
+
+-71 degrees,  7 minutes, 30 seconds
+ 42 degrees, 22 minutes, 30 seconds
+
+--------------------------------------------------------------------------------
+
+* 2020/05/01
+
+** Detect if a file is not a DLG-3 file in optional format
+
+Parse section, check F0n with 1 <= n <= 8 or Snn with 01 <= nn <= 32.
+Parse and check scale == 100000
+Parse and check DLG level == 3
+Parse states, check against list of state abbreviations.
+Parse floats, trap ValueErrors
+
+* To do
+
+- File/Open dialog: open multiple files
+- open place / mapname
+  mapname = quad, or east/west half-quad
+- submenu recent
+  - files
+  - places
+
+--------------------------------------------------------------------------------
+
+* 2020/05/02
+
+** Bounding boxes in view.py:get_transform():
+
+FRANCISCO (4177902.1, 4205726.83, 521949.78, 544049.57)
+BARBARA (3792507.88, 3820833.86, 246748.5, 270461.2)
+Union (3792507.88, 4205726.83, 246748.5, 544049.57)
+
+USGS-NMD  DLG DATA - CHARACTER FORMAT - 09-29-87 VERSION                
+FRANCISCO, CA, 1978,     ,  ,   100000, F02
+ 502,     ,  102,     ,    R, 0,  , 1, 6, 0,  , 0,  
+3, 1, 10, 2, 2.54, 4, 0, 4, 1
+-122037030.00000000, 37052030.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+1.00000000, 0.00000000, 0.00000000, 0.00000000
+SW, 37.75, -122.75, 522025.36, 4177902.10
+NW, 38.00, -122.75, 521949.78, 4205638.88
+NE, 38.00, -122.50, 543900.33, 4205726.83
+SE, 37.75, -122.50, 544049.57, 4177990.35
+HYDROGRAPHY, 0, 259, 259, False, True, 43, 43, False, True, False, 287, 287, True
+
+MONTEREY, CA, 1983,     ,  ,   100000, F01
+    ,     ,  502,     ,    3, 3, 6, 3, 6, 0,  , 0,  
+3, 1, 10, 2, 2.54, 4, 0, 4, 1
+-121052030.00000000, 36052030.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+1.00000000, 0.00000000, 0.00000000, 0.00000000
+SW, 36.75, -122.00, 589271.24, 4067402.59
+NW, 37.00, -122.00, 588978.42, 4095135.38
+NE, 37.00, -121.75, 611224.75, 4095399.31
+SE, 36.75, -121.75, 611588.73, 4067664.82
+HYDROGRAPHY, 0, 260, 260, False, True, 70, 70, False, True, False, 316, 316, True
+
+CAMBRIA, CA, 1980,     ,  ,   100000, F01
+    ,     ,  402,  102,    A,  , 4, 0,  , 0,  , 0,  
+3, 1, 10, 2, 2.54, 4, 0, 4, 1
+-121052030.00000000, 35052030.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+1.00000000, 0.00000000, 0.00000000, 0.00000000
+SW, 35.75, -122.00, 590414.44, 3956481.17
+NW, 36.00, -122.00, 590131.85, 3984211.53
+NE, 36.00, -121.75, 612665.29, 3984470.06
+SE, 35.75, -121.75, 613019.00, 3956740.52
+HYDROGRAPHY, 0, 4, 4, False, True, 2, 2, False, True, False, 4, 4, True
+
+OBISPO, CA, 1981,     ,  ,   100000, F06
+    ,     ,  402,     ,    P, 0,  , 0,  , 0,  , 0,  
+3, 1, 10, 2, 2.54, 4, 0, 4, 1
+-120037030.00000000, 35007030.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+1.00000000, 0.00000000, 0.00000000, 0.00000000
+SW, 35.00, -120.75, 705339.26, 3875157.74
+NW, 35.25, -120.75, 704712.55, 3902890.07
+NE, 35.25, -120.50, 727461.96, 3903433.81
+SE, 35.00, -120.50, 728159.83, 3875700.63
+HYDROGRAPHY, 0, 257, 257, False, True, 46, 46, False, True, False, 278, 278, True
+
+BARBARA, CA, 1982,     ,  ,   100000, F02
+    ,     ,  502,     ,    R, 0,  , 2, 6, 0,  , 0,  
+3, 1, 11, 2, 2.54, 4, 0, 4, 1
+-119037030.00000000, 34022030.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+0.00000000, 0.00000000, 0.00000000
+1.00000000, 0.00000000, 0.00000000, 0.00000000
+SW, 34.25, -119.75, 246748.50, 3793102.07
+NW, 34.50, -119.75, 247499.64, 3820833.86
+NE, 34.50, -119.50, 270461.20, 3820238.84
+SE, 34.25, -119.50, 269776.15, 3792507.88
+HYDROGRAPHY, 0, 197, 197, False, True, 35, 35, False, True, False, 219, 219, True
+
+undo open file
+
+--------------------------------------------------------------------------------
+
+* 2020/05/05
+
+** Commit
+
+Introduce the notion of models that abstract a common API exposed to the view,
+currently Usgs (bounding boxes of locally saved quads) and Dlg3 (the actual map
+files for rendering) are implemented. The placing of geocoded named places
+would be a 3rd model.
+
+Open whole quads at once from a submenu.
+
+storage.py isolates all the code related to the filesystem.
+category.py aggregates attribute counts over an entire half-quad.
+headers.py displays file headers for an entire quad.
+utm.py converts (ongoing) lat/long to UTM's (E,N).
