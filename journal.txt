@@ -344,3 +344,29 @@ storage.py isolates all the code related to the filesystem.
 category.py aggregates attribute counts over an entire half-quad.
 headers.py displays file headers for an entire quad.
 utm.py converts (ongoing) lat/long to UTM's (E,N).
+
+** Commit
+
+Correct recursive algorithm for painting areas:
+
+paint_area(area):
+    paint the area's polygon
+    iterate over the area's islands
+        iterate over the island's inner toplevel areas a:
+	    paint_area(a)
+
+The double iteration is implemented in NodeOrArea:inner_areas().
+
+** To do - next steps
+
+- implement shapefile parsing
+- learn OSM query syntax and data representation
+- study more UTM
+  - "The universal grids: UTM and UPS"
+  - "Map projections - a working manual", by John P. Snyder
+  - "Theories of higher geodesy", by Helmert
+- improve my wxPython
+  - proper layout, without overlaps
+  - proper repaint, including on resize, with double-buffering
+  - overlays
+  - list of check buttons for layers
