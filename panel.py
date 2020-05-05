@@ -72,15 +72,17 @@ class MainPanel(wx.Panel):
         
         self.SetSizer(hbox)
 
-    def OnButtonLine(self, e):
-        line = int(self.tcl.GetValue())
+    def OnButtonLine(self, _):
+        s = self.tcl.GetValue()
+        line_nbr = -1 if s == '' else int(s)
         # print(f'Drawing line {line}.')
-        self.parent_frame.on_draw_line(line)
+        self.parent_frame.on_draw_line(line_nbr)
 
-    def OnButtonArea(self, e):
-        area = int(self.tca.GetValue())
+    def OnButtonArea(self, _):
+        s = self.tca.GetValue()
+        area_nbr = -1 if s == '' else int(s)
         # print(f'Drawing area {area}.')
-        self.parent_frame.on_draw_area(area)
+        self.parent_frame.on_draw_area(area_nbr)
 
 #===============================================================================
 # main

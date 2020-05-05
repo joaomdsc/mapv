@@ -2,6 +2,9 @@
 
 import wx
 
+light_blue = wx.Colour(214, 237, 251)
+darker_blue = wx.Colour(0, 128, 255)
+
 map_style = dict(
     boundaries=dict(
         nodes={
@@ -36,18 +39,16 @@ map_style = dict(
                 ),
                 '0116': dict(
                     description='Bays, estuaries, gulfs, oceans, seas',
-                    brush=dict(color=wx.Colour(214, 237, 251)),
-                    # brush=dict(color=wx.Colour(214, 237, 251)),  # light blue 1
-                    # brush=dict(color=wx.Colour(204, 230, 255)),  # light blue 2
+                    brush=dict(color=light_blue),
                 ),
             },
         },
         lines={
             '050': {
-                '0202': dict(
-                    description='Closure line',
-                    pen=dict(color='red'),
-                ),
+                # '0202': dict(
+                #     description='Closure line',
+                #     pen=dict(color='red'),
+                # ),
                 '0204': dict(
                     description='Apparent limit',
                     pen=dict(color='dark orange'),
@@ -58,14 +59,14 @@ map_style = dict(
             '050': {
                 '0412': dict(
                     description='Stream',
-                    pen=dict(color=wx.Colour(214, 237, 251)),
-                    brush=dict(color=wx.Colour(214, 237, 251)),
+                    pen=dict(color=darker_blue),
+                    brush=dict(color=light_blue),
                 ),
-                '0414': dict(
-                    description='Ditch or canal',
-                    pen=dict(color='violet'),
-                    brush=dict(color='violet'),
-                ),
+                # '0414': dict(
+                #     description='Ditch or canal',
+                #     pen=dict(color='red'),
+                #     brush=dict(color='red'),
+                # ),
                 '0415': dict(
                     description='Aqueduct',
                     pen=dict(color='dark orange'),
@@ -73,7 +74,7 @@ map_style = dict(
                 ),
                 '0421': dict(
                     description='Lake or pond',
-                    brush=dict(color=wx.Colour(214, 237, 251)),
+                    brush=dict(color=light_blue),
                 ),
                 '0604': dict(
                     description='Tunnel',
@@ -119,13 +120,13 @@ def make_brush(params):
     return b
 
 def get_style(category, type_, major, minor):
-    x = major.strip()
-    if len(x) < 3:
-        maj = f'{x:>03}'
+    maj = major.strip()
+    if len(maj) < 3:
+        maj = f'{maj:>03}'
     
-    x = minor.strip()
-    if len(x) < 4:
-        min = f'{x:>04}'
+    min = minor.strip()
+    if len(min) < 4:
+        min = f'{min:>04}'
 
     # type_ is 'nodes', 'areas', or 'lines'. We must check in that type but
     # also in multiples

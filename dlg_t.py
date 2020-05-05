@@ -1,7 +1,7 @@
 # test_dlg.py -*- coding: utf-8 -*-
 
 import unittest
-from dlg import merge_attrs
+from dlg import merge_attrs, between_zeroes
 
 #-------------------------------------------------------------------------------
 # I want stdout to be unbuffered, always
@@ -20,10 +20,10 @@ import sys
 sys.stdout = Unbuffered(sys.stdout)
 
 # -----------------------------------------------------------------------------
-# DlgTest
+# Dicts
 # -----------------------------------------------------------------------------
 
-class DlgTest(unittest.TestCase):
+class Dicts(unittest.TestCase):
 
     def test_01_both_dictionaries_empty(self):
         self.assertEqual({}, merge_attrs({}, {}))
@@ -55,6 +55,36 @@ class DlgTest(unittest.TestCase):
         d2 = dict(dd=91, bb=2, ff=52, kk=3, zz=75)
         d3 = dict(aa=3, bb=7, dd=91, ff=52, gg=77, kk=92, zz=75)
         self.assertEqual(d3, merge_attrs(d1, d2))
+
+# -----------------------------------------------------------------------------
+# DlgIslands
+# -----------------------------------------------------------------------------
+
+class DlgIslands(unittest.TestCase):
+
+    def test_01_no_islands(self):
+        x = [-109, 108, 99, 97, 82, -222, 87, 86]
+        self.assertEqual([], list(between_zeroes(x)))
+
+    def test_02_one_small_island(self):
+        x = [-109, 108, 99, 97, 82, -222, 87, 86, 0, -77]
+        y = [[-77]]
+        self.assertEqual(y, list(between_zeroes(x)))
+
+    def test_03_one_bigger_island(self):
+        x = [-109, 108, 99, 97, 82, -222, 87, 86, 0, -77, 35, 48, -9, 11]
+        y = [[-77, 35, 48, -9, 11]]
+        self.assertEqual(y, list(between_zeroes(x)))
+
+    def test_04_two_islands(self):
+        x = [-109, 108, 99, 97, 82, -222, 87, 86, 0, -77, 0, -223, 5, 71]
+        y = [[-77], [-223, 5, 71]]
+        self.assertEqual(y, list(between_zeroes(x)))
+
+    def test_05_three_islands(self):
+        x = [-109, 0, 13, 48, -77, 0, -223, 0, 71, 99, 732, 18]
+        y = [[13, 48, -77], [-223], [71, 99, 732, 18]]
+        self.assertEqual(y, list(between_zeroes(x)))
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

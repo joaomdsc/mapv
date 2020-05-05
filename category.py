@@ -4,7 +4,9 @@
 get a list and count of the attributes present in the 4 or 16 files of data for
 this layer.  """
 
-import os import sys import dlg
+import os
+import sys
+import dlg
 
 categories = [
     'boundaries',

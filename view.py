@@ -1,12 +1,17 @@
-# mapv.py - map viewer
+# mapv/view.py - map viewer
 
 import os
 import wx
 from panel import MainPanel
 from summary import SummaryDialog
 from style import get_style
+from storage import mapname_files, get_dir, set_dir
 from dlg import load_data
 from usgs import Usgs
+from model import Model
+from model_usgs import UsgsModel
+from model_dlg3 import Dlg3Model
+from bitmaps import nbr_brush
 
 #-------------------------------------------------------------------------------
 # I want stdout to be unbuffered, always
@@ -37,185 +42,161 @@ class DlgView(wx.Frame):
 
         self.SetTitle('Mapv')
         self.CreateStatusBar()
+
+        # Menus
+        self.places_submenu = None  # for adding/removing items
+        self.places_menuitem = None  # for enabling/disabling the submenu
         self.SetMenuBar(self.create_menus())
         self.Show(True)
 
         # Main panel
         self.panel = MainPanel(self, parent_frame=self)
-        self.panel.Bind(wx.EVT_SIZE, self.on_size)
+        # self.panel.Bind(wx.EVT_SIZE, self.on_size)
         self.panel.Bind(wx.EVT_PAINT, self.on_paint)
+        self.pen = None
+        self.brush = None
 
         # The view needs its model, so it can show it
-        self.dlgs = None
+        self.model = None
 
         # Transformation is (x_win, y_win)
         self.t = None
-        
-        self.file = None
-        self.line_nbr = None
-        self.area_nbr = None
-
-        # Misc
-        self.request = ''
-
-        # USGS geocoded names
-        self.usgs = Usgs()
-        self.name_points = self.usgs.get_name_coords()
 
         # Initially open file
         if filepath is not None:
-            self.set_dir(os.path.dirname(filepath))
-            self.file = os.path.basename(filepath)
-            
-            self.dlgs = [load_data(filepath)]
+            set_dir(os.path.dirname(filepath))
+            self.model.open(filepath)
 
         if mapname is not None:
-            path = r'C:\x\data\dds.cr.usgs.gov\pub\data\DLG\100K'
-            path = os.path.join(path, mapname[0].upper())
-            path = os.path.join(path, mapname)
+            self.model = Dlg3Model()
+            open_mapname(mapname)
 
-            print(f'mapname="{mapname}", path="{path}"')
+    def on_open_file(self, _):
+        d = wx.FileDialog(self, 'Open a DLG-3 file', get_dir(), '',
+                          '*.*', wx.FD_OPEN)
+        if d.ShowModal() == wx.ID_OK:
+            dir = d.GetDirectory()
+            set_dir(dir)
+            file = d.GetFilename()
+            if self.model is None or self.model.kind == 'Usgs':
+                self.model = Dlg3Model()
+            self.model.open(os.path.join(dir, file))
+            self.Refresh()
+        d.Destroy()
 
-            if not os.path.isdir(path):
-                print(f"Can't find '{mapname}'")
-            else:
-                self.dlgs = []
-                for f in os.listdir(path):
-                    if f != 'hydrography':
-                        continue
-                    layer = os.path.join(path, f)
-                    if os.path.isdir(layer):
-                        for g in os.listdir(layer):
-                            if g.endswith('.opt.gz'):
-                                filepath = os.path.join(layer, g)
-                                try:
-                                    self.dlgs.append(load_data(filepath))
-                                except ValueError:
-                                    pass
+    def on_open_place(self, e):
+        obj = e.GetEventObject()
+        id = e.GetId()
+        mapname = obj.GetLabel(id)
+        print(f'{obj.GetLabel(id)}')
+        s = f'Opening {mapname}'
+        self.GetStatusBar().PushStatusText(s)
+        if self.model is None or self.model.kind == 'Usgs':
+            self.model = Dlg3Model()
+        self.model.open_mapname(mapname)
+        self.Refresh()
+            
+    def on_clear(self, _):
+        self.model = None
+        self.showing_usgs = None
+        self.dc.SetBackground(wx.Brush('white'))
+        self.dc.Clear()
+        self.Refresh()
+            
+    def on_refresh(self, _):
+        self.dc.SetBackground(wx.Brush('white'))
+        self.dc.Clear()
+        self.Refresh()
 
-    def show_summary(self, e):
-        if self.dlg is None:
+    def show_usgs(self, _):
+        self.model = UsgsModel()
+        s = f'Loaded {len(self.model.names.keys())} DLG-3 files'
+        self.GetStatusBar().PushStatusText(s)
+        self.add_menu_entries(self.model.places())
+        self.Refresh()
+
+    def show_summary(self, _):
+        if self.model is None:
             self.GetStatusBar().PushStatusText('No file open')
             return
-        with SummaryDialog(filename=self.file,
+        with SummaryDialog(filename=self.model.file,
                            values=self.dlg.summary()) as d:
             d.ShowModal()
 
-    def show_colors(self, e):
+    def show_colors(self, _):
         data = wx.ColourData()
         with wx.ColourDialog(self, data) as d:
             d.ShowModal()
             data = d.GetColourData()
             c = data.GetColour()
-            print(f'Color: {c}')
-            
-    def create_menus(self):
-        fm = wx.Menu()
-        mi = fm.Append(wx.ID_OPEN, '&New', 'Open a new DLG-3 file')
-        self.Bind(wx.EVT_MENU, self.on_new, mi)
-        mi = fm.Append(wx.ID_ANY, '&Open', 'Open another DLG-3 file on top')
-        self.Bind(wx.EVT_MENU, self.on_open, mi)
-        mi = fm.Append(wx.ID_ANY, 'Refresh', 'Clear and refresh')
-        self.Bind(wx.EVT_MENU, self.on_refresh, mi)
-        mi = fm.Append(wx.ID_ANY, 'Summary', 'Show a summary of file')
-        self.Bind(wx.EVT_MENU, self.show_summary, mi)
-        mi = fm.Append(wx.ID_ANY, 'Colors', 'Color picker')
-        self.Bind(wx.EVT_MENU, self.show_colors, mi)
-        mi = fm.Append(wx.ID_ABOUT, '&About', 'Yet another map viewer')
-        self.Bind(wx.EVT_MENU, self.on_about, mi)
-        fm.AppendSeparator()
-        mi = fm.Append(wx.ID_EXIT, '&Exit', 'Terminate the program')
-        self.Bind(wx.EVT_MENU, self.on_quit, mi)
-        mb = wx.MenuBar()
-        mb.Append(fm, '&File')
-        return mb
+            # print(f'Color: {c}')
 
-    def get_dir(self):
-        """Retrieve the directory path for opening files.
-
-        Each time a file is opened, mapv stores the directory path in a
-        file, so it can be reused. This function returns that path.
-        """
-        filepath = os.path.join(os.environ.get('HOME'), '.mapv')
-        if not os.path.isfile(filepath):
-            return r'C:\x\data\dds.cr.usgs.gov\pub\data\DLG\100K'
-        with open(filepath, 'r') as f:
-            # Assume file contains just the directory path
-            return f.read().strip()
-
-    def set_dir(self, dir):
-        filepath = os.path.join(os.environ.get('HOME'), '.mapv')
-        with open(filepath, 'w') as f:
-            f.write(dir)
-
-    def on_new(self, e):
-        d = wx.FileDialog(self, 'Choose a new file to open', self.get_dir(), '',
-                          '*.*', wx.FD_OPEN)
-        if d.ShowModal() == wx.ID_OK:
-            dir = d.GetDirectory()
-            self.set_dir(dir)
-            self.file = d.GetFilename()
-            filepath = os.path.join(dir, self.file)
-
-            self.dlgs = [load_data(filepath)]
-            self.Refresh()
-        d.Destroy()
-
-    def on_open(self, e):
-        d = wx.FileDialog(self, 'Open another file on top', self.get_dir(), '',
-                          '*.*', wx.FD_OPEN)
-        if d.ShowModal() == wx.ID_OK:
-            dir = d.GetDirectory()
-            self.set_dir(dir)
-            file = d.GetFilename()
-            filepath = os.path.join(dir, file)
-
-            self.dlgs.append(load_data(filepath))
-            self.Refresh()
-        d.Destroy()
-
-    def updt_listener(self, arg):
-        if self.request == 'new':
-            self.dlg = arg
-            s = str(self.dlg)
-        else:
-            self.dlg2 = arg
-            s = str(self.dlg2)
-        self.GetStatusBar().PushStatusText(str(s))
-        self.Refresh()
-            
-    def on_refresh(self, e):
-        self.dc.SetBackground(wx.Brush('white'))
-        self.dc.Clear()
-        self.Refresh()
-            
-    def on_about(self, e):
+    def on_about(self, _):
         s = 'Mapv is a viewer for USGS DLG-3 cartographic data.'
         d = wx.MessageDialog(self, s, 'About Mapv')
         d.ShowModal()
         d.Destroy()
 
-    def on_quit(self, e):
+    def on_quit(self, _):
         self.Close(True)
-
-    # FIXME move this to a helpers module with unit tests
-    def bbox_union(self, b1, b2):
-        min_lat = b1[0] if b1[0] < b2[0] else b2[0]
-        max_lat = b1[1] if b1[1] > b2[1] else b2[1]
-        min_long = b1[2] if b1[2] < b2[2] else b2[2]
-        max_long = b1[3] if b1[3] > b2[3] else b2[3]
-        return min_lat, max_lat, min_long, max_long
         
-    def get_transform(self, usgs=None):
+    def create_menus(self):
+        fm = wx.Menu()
+        mi = fm.Append(wx.ID_ANY, '&Open file', 'Open a DLG-3 file')
+        self.Bind(wx.EVT_MENU, self.on_open_file, mi)
+
+        # Sub-menu
+        m = wx.Menu()
+        mi = fm.Append(wx.ID_ANY, '&Open place', m)
+        mi.Enable(False)
+
+        # Persist
+        self.places_submenu = m  # for adding/removing items
+        self.places_menuitem = mi  # for enabling/disabling the submenu
+
+        mi = fm.Append(wx.ID_ANY, '&Clear', 'Clear all files')
+        self.Bind(wx.EVT_MENU, self.on_clear, mi)
+        mi = fm.Append(wx.ID_ANY, 'Refresh', 'Refresh the display')
+        self.Bind(wx.EVT_MENU, self.on_refresh, mi)
+        mi = fm.Append(wx.ID_ANY, 'USGS Quads', 'Show a map of the USGS quads')
+        self.Bind(wx.EVT_MENU, self.show_usgs, mi)
+        mi = fm.Append(wx.ID_ANY, 'Summary', 'Show a summary of a file')
+        self.Bind(wx.EVT_MENU, self.show_summary, mi)
+        mi = fm.Append(wx.ID_ANY, 'Colors', 'Color picker')
+        self.Bind(wx.EVT_MENU, self.show_colors, mi)
+        mi = fm.Append(wx.ID_ANY, '&About', 'Yet another map viewer')
+        self.Bind(wx.EVT_MENU, self.on_about, mi)
+        fm.AppendSeparator()
+        mi = fm.Append(wx.ID_ANY, '&Exit', 'Terminate the program')
+        self.Bind(wx.EVT_MENU, self.on_quit, mi)
+        mb = wx.MenuBar()
+        mb.Append(fm, '&File')
+        return mb
+
+    def add_menu_entries(self, places):
+        m = self.places_submenu
+
+        for p in places:
+            # The first string appears on the menu itself, and it's what we
+            # retrieve in obj.GetLabel(id) in the event handler. The second
+            # string is displayed on the status bar.
+            mi = m.Append(wx.ID_ANY, p, p)
+            self.Bind(wx.EVT_MENU, self.on_open_place, mi)
+        self.places_menuitem.Enable(True)
+        
+    def get_transform(self):
         """Get the transformation functions from map to drawing.
 
         This changes on two occasions:
           - when another DLG file is added
           - when the window is resized
           """
+        # FIXME get_transform works from a model, of which I have two. Define
+        # the model's API and re-factor this..
         
         # Size of device context
         w_wx, h_wx = self.dc.GetSize()
+        # print(f'dc.GetSize: w={w_wx}, h={h_wx}')
         pad = 10
         
         # Drawable area (after padding)
@@ -224,21 +205,7 @@ class DlgView(wx.Frame):
         ratio_draw = w_draw/h_draw
 
         # Map proportions
-        
-        # FIXME calculating the bounding box is the map's responsibility, this
-        # should move out of here. We want a single model/map method for bbox.
-        if len(self.dlgs) == 1:
-            min_lat, max_lat, min_long, max_long = self.dlgs[0].bounding_box()
-        else:
-            box = self.dlgs[0].bounding_box()
-            for d in self.dlgs[1:]:
-               box =  self.bbox_union(box, d.bounding_box())
-            # Note the trailing comma that makes it a tuple
-            min_lat, max_lat, min_long, max_long = *box,
-
-        # USGS geocoded names
-        if usgs is not None:
-            min_lat, max_lat, min_long, max_long = self.usgs.bbox()
+        min_lat, max_lat, min_long, max_long = self.model.bounding_box()
             
         w_map = max_long - min_long
         h_map = max_lat - min_lat
@@ -268,25 +235,42 @@ class DlgView(wx.Frame):
 
         # Return the required functions
         return x_win, y_win
-        
+
     def dlg_draw(self, dlg):
         x_win, y_win = self.t
 
-        # Draw the lines in black
-        default_pen = wx.Pen('black')
-        default_brush = wx.Brush('black')
+        # default_pen = wx.Pen('black')
+        # default_brush = wx.Brush('black')
         
+        # Draw areas: if an area has islands, only the area itself will be
+        # painted, not its islands. However, the islands also appear by
+        # themselves in the list, so they will get painted, but the order is
+        # not guaranteed. If the island is painted first, painting the
+        # enclosing area will overwrite the island.
+        for a in dlg.areas:
+            self.draw_area(dlg, a)
+
+        # Areas with islands: get_points ignores the islands, so the previous
+        # code painted the entire polygon, overwriting the islands. The
+        # following code now paints the islands themselves. FIXME there is
+        # duplication here, islands are being painted twice.
+
+        # # Draw islands
+        # for a in dlg.island_areas():
+        #     self.draw_area(dlg, a)
+
+        # Draw the lines in black
+        default_brush = wx.Brush('black')
         for l in dlg.lines:
             if len(l.coords) > 1:
                 # l.coords is a list of (long, lat) couples
                 pen = brush = None
                 if l.attrs is not None and len(l.attrs) > 0:
                     maj, min = l.attrs[0]
-                    # print(f'Line {l.id}: "{maj}", "{min}"')
                     pen, brush = get_style('hydrography', 'lines', maj, min)
                     
-                self.dc.SetPen(default_pen if pen is None else pen)
-                self.dc.SetBrush(default_brush if brush is None else brush)
+                self.dc.SetPen(self.pen if pen is None else pen)
+                self.dc.SetBrush(self.brush if brush is None else brush)
                 
                 prev_long, prev_lat = l.coords[0]
                 for long_, lat in l.coords[1:]:
@@ -296,35 +280,26 @@ class DlgView(wx.Frame):
                     prev_lat = lat
                     prev_long = long_
 
-        # Draw areas that meet certain criteria
-        for a in dlg.areas:
-            if a.nb_islands > 0 or a.attrs is None or len(a.attrs) == 0:
-                continue
-            maj, min = a.attrs[0]
-            # print(f'Area {a.id}: "{maj}", "{min}"')
-            pen, brush = get_style('hydrography', 'areas', maj, min)
-            if pen is None and brush is None:
-                continue
-            self.dc.SetPen(default_pen if pen is None else pen)
-            self.dc.SetBrush(default_brush if brush is None else brush)
-            points = [(x_win(long_), y_win(lat))
-                              for long_, lat in a.get_points(dlg)]
-            self.dc.DrawPolygon(points)
-
     def on_draw_line(self, line_nbr):
-        self.line_nbr = line_nbr
+        self.model.line = self.model.dlgs[0].lines[line_nbr-1] if line_nbr != -1 else None
         self.Refresh()
 
-    def draw_line(self, line_nbr):
+    def draw_line(self, dlg, line, pen=None, brush=None):
         x_win, y_win = self.t
 
-        pen, brush = wx.Pen('black'), wx.Brush('black')
-        line = self.dlg.lines[line_nbr - 1]
+        a_pen = a_brush = None
         if line.attrs is not None and len(line.attrs) > 0:
             maj, min = line.attrs[0]
-            pen, brush = get_style('hydrography', 'lines', maj, min)
-        self.dc.SetPen(pen)
-        self.dc.SetBrush(brush)
+            a_pen, a_brush = get_style('hydrography', 'lines', maj, min)
+            
+        # Priority: function argument, then attributes, then default
+        self.dc.SetPen(pen if pen is not None else
+                 a_pen if a_pen is not None else
+                 self.pen)
+        self.dc.SetBrush(brush if brush is not None else
+                 a_brush if a_brush is not None else
+                 self.brush)
+        
         if len(line.coords) > 1:
             # line.coords is a list of (long, lat) couples
             prev_long, prev_lat = line.coords[0]
@@ -336,62 +311,163 @@ class DlgView(wx.Frame):
                 prev_long = long_
 
     def on_draw_area(self, area_nbr):
-        self.area_nbr = area_nbr
+        self.model.area = self.model.dlgs[0].areas[area_nbr-1] if area_nbr != -1 else None
+        self.bitmap_brush = nbr_brush(area_nbr)
         self.Refresh()
 
-    def draw_area(self, area_nbr):
+    def draw_area(self, dlg, a, pen=None, brush=None):
         x_win, y_win = self.t
-        
-        pen, brush = wx.Pen('red'), wx.Brush('orange')
-        a = self.dlg.areas[area_nbr-1]
+
+        a_pen = a_brush = None
         if a.attrs is not None and len(a.attrs) > 0:
-            maj, min == a.attrs[0]
-            pen, brush = get_style('hydrography', 'areas', maj, min)
-        self.dc.SetPen(pen)
-        self.dc.SetBrush(brush)
-        # print(f"Area {a.id}: {', '.join([str(x) for x in a.adj_lines])}")
+            maj, min = a.attrs[0]
+            a_pen, a_brush = get_style('hydrography', 'areas', maj, min)
+
+        # Priority: function argument, then attributes, then default
+        self.dc.SetPen(pen if pen is not None else
+                 a_pen if a_pen is not None else
+                 self.pen)
+        self.dc.SetBrush(brush if brush is not None else
+                 a_brush if a_brush is not None else
+                 self.brush)
+        
         points = [(x_win(long_), y_win(lat))
-                      for long_, lat in a.get_points(self.dlg)]
+                      for long_, lat in a.get_points(dlg)]
         self.dc.DrawPolygon(points)
+
+        # Now draw your islands
+        for isle_area in a.island_areas(dlg):
+            self.draw_area(dlg, isle_area)
+
+    def draw_usgs(self, model):
+        x_win, y_win = self.t
+
+        # Draw rectangles that hold a named place from control points
+        for mapname, zone, box in model.named_rects_ctrl():
+            # print(f'Ctrl: {mapname} {box}')
+            min_lat, max_lat, min_long, max_long = box
+            SW = x_win(min_long), y_win(min_lat)
+            NW = x_win(min_long), y_win(max_lat)
+            NE = x_win(max_long), y_win(max_lat)
+            SE = x_win(max_long), y_win(min_lat)
+            self.dc.DrawPolygon([SW, NW, NE, SE])
+
+            # Box dimensions
+            box_w = SE[0] - SW[0]
+            box_h = SW[1] - NW[1]
+            
+            # Write something inside the box
+            self.dc.DrawText(mapname, SW[0] + 5, NW[1] + 5)
+
+            w, h = self.dc.GetTextExtent(str(zone))
+            x = int(round((box_w - w)/2))
+            y = int(round((box_h - h)/2))
+            self.dc.DrawText(str(zone), SW[0] + x, NW[1] + y)
+
+        # # FIXME make a function with the iterator/generator s a parameter
+
+        # # Draw rectangles that hold a named place from the data
+        # for mapname, zone, box in model.named_rects():
+        #     print(f'Data: {mapname} {box}')
+        #     min_lat, max_lat, min_long, max_long = box
+        #     SW = x_win(min_long), y_win(min_lat)
+        #     NW = x_win(min_long), y_win(max_lat)
+        #     NE = x_win(max_long), y_win(max_lat)
+        #     SE = x_win(max_long), y_win(min_lat)
+        #     pen = self.dc.GetPen()
+        #     self.dc.SetPen(wx.Pen('sky blue'))
+        #     self.dc.DrawPolygon([SW, NW, NE, SE])
+        #     self.dc.SetPen(pen)
+
+        #     # Box dimensions
+        #     box_w = SE[0] - SW[0]
+        #     box_h = SW[1] - NW[1]
+            
+        #     # Write something inside the box
+        #     self.dc.DrawText(mapname, SW[0] + 5, NW[1] + 5)
+
+        #     w, h = self.dc.GetTextExtent(str(zone))
+        #     x = int(round((box_w - w)/2))
+        #     y = int(round((box_h - h)/2))
+        #     self.dc.DrawText(str(zone), SW[0] + x, NW[1] + y)
 
     def draw_names(self):
         x_win, y_win = self.t
 
+        # Draw rectangles when they hold a named place
         self.dc.SetPen(wx.Pen('black'))
+        self.dc.SetBrush(wx.Brush('#e0e0e0'))
+        x_prev = self.usgs.lng_min
+        for x in range(self.usgs.lng_min + 1, self.usgs.lng_max):
+            lat_prev = self.usgs.lat_min
+            for y in range(10*(self.usgs.lat_min + 5),
+                           10*(self.usgs.lat_max + 1), 5):
+                lat = y/10
+                # Paint the rectangle gray if it contains a named place
+                if self.usgs.get_place(lat_prev, x) is not None:
+                    points = [
+                        (x_win(x_prev), y_win(lat_prev)),
+                        (x_win(x), y_win(lat_prev)),
+                        (x_win(x), y_win(lat)),
+                        (x_win(x_prev), y_win(lat)),
+                    ]
+                    self.dc.DrawPolygon(points)
+                lat_prev = lat
+            x_prev = x
+
+        # Draw horizontal lines
+        self.dc.SetPen(wx.Pen('black'))
+        for y in range(10*self.usgs.lat_min, 10*(self.usgs.lat_max + 1), 5):
+            lat = y/10
+            self.dc.DrawLine(x_win(self.usgs.lng_min), y_win(lat),
+                             x_win(self.usgs.lng_max), y_win(lat))
+
+        # Draw vertical lines
+        for x in range(self.usgs.lng_min, self.usgs.lng_max):
+            self.dc.DrawLine(x_win(x), y_win(self.usgs.lat_min),
+                             # The "+ 0.5" below is actually something like a
+                             # "next(self.usgs.lat_max)" in the iterator sense
+                             x_win(x), y_win(self.usgs.lat_max + 0.5))
+
+        # Pinpoint the named places
         self.dc.SetBrush(wx.Brush('red'))
         for lng, lat in self.name_points:
-            self.dc.DrawCircle(x_win(lng), y_win(lat), 3)
+            self.dc.DrawCircle(x_win(lng), y_win(lat), 2)
 
-    def on_size(self, e):
+    def on_size(self, _):
         self.Refresh()
 
-    def on_paint(self, e):
+    def on_paint(self, _):
         self.dc = wx.PaintDC(self.panel)
         self.dc.SetBackground(wx.Brush('white'))
         self.dc.Clear()
+        self.pen = self.dc.GetPen()
+        self.brush = self.dc.GetBrush()
             
-        # If there's no data yet, nothing to paint
-        if self.dlgs is None:
+        # If there are no models yet, nothing to paint
+        if self.model is None:
             return
         
-        # Transform requires a wx.DC
-        self.t = self.get_transform(usgs=self.usgs is not None)
-        # self.t = self.get_transform()
+        # Define transformation form model to drawing window 
+        self.t = self.get_transform()
 
-        # USGS geocoded names
-        if self.usgs is not None:
-            self.draw_names()
+        if self.model.kind == 'Usgs':
+            # models should expose iterators/generators on polygons, lines,
+            # nodes.
+            self.draw_usgs(self.model)
+            return
 
         # Draw all DLGs
-        for dlg in self.dlgs:
+        for dlg in self.model.dlgs:
             self.dlg_draw(dlg)
             
-        # Special requests
-        # FIXME line/area is no longer enough when there are several quad's open
-        if self.line_nbr is not None:
-            self.draw_line(self.line_nbr)
-        if self.area_nbr is not None:
-            self.draw_area(self.area_nbr)
+        # Special requests act on dlgs[0]
+        if self.model.line is not None:
+            self.draw_line(self.model.dlgs[0], self.model.line, pen=wx.Pen('red'))
+        if self.model.area is not None:
+            self.draw_area(self.model.dlgs[0], self.model.area, pen=wx.Pen('black'),
+                           brush=wx.Brush('red'))
+                           # brush=self.bitmap_brush)
     
 #===============================================================================
 # main

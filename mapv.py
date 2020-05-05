@@ -32,7 +32,7 @@ if __name__ == '__main__':
     app = wx.App()
     if arg is None:
         DlgView()
-    elif os.path.isdir(arg):
+    elif os.path.isfile(arg):
         DlgView(filepath=arg)
     else:
         DlgView(mapname=arg)

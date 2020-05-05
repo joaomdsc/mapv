@@ -47,7 +47,24 @@ def merge_attrs(d1, d2):
         if k in d1 and k in d2:
             d3[k] += d1[k]
     return d3
- 
+
+# Iterators on line id's
+def zero_stop(ids):
+    """Ids before the first zero."""
+    for i in ids:
+        if i == 0:
+            return
+        yield i
+
+def between_zeroes(ids):
+    """Sequences of ids bracketed by zeroes."""
+    zeroes = [i for i, e in enumerate(ids) if e == 0]
+    zeroes += [len(ids)]  # Add a final zero
+    z_prev = zeroes[0]
+    for z in zeroes[1:]:
+        yield ids[z_prev+1:z]
+        z_prev = z
+    
 #-------------------------------------------------------------------------------
 # File identification and description records
 #-------------------------------------------------------------------------------
@@ -195,8 +212,8 @@ class CtrlPoint():
         self.label = label
         self.lat = lat
         self.long = long
-        self.x = x
-        self.y = y
+        self.x = x  # Easting
+        self.y = y  # Northing
 
     def __str__(self):
         return (f'{self.label}, {self.lat:.2f}, {self.long:.2f}, {self.x:.2f}'
@@ -309,8 +326,9 @@ class DataCategory():
 #-------------------------------------------------------------------------------
  
 class NodeOrArea():
-    def __init__(self, type, id, long_, lat, nb_na_links, nb_line_links,
+    def __init__(self, dlg, type, id, long_, lat, nb_na_links, nb_line_links,
                  nb_points, nb_attr_pairs, nb_chars, nb_islands):
+        self.dlg = dlg
         self.type = type
         self.id = id
         self.long = long_
@@ -321,8 +339,9 @@ class NodeOrArea():
         self.nb_attr_pairs = nb_attr_pairs
         self.nb_chars = nb_chars
         self.nb_islands = nb_islands
-        self.adj_lines= None
+        self.adj_line_ids= None
         self.attrs = None  # array of (major, minor) string couples
+        self.islands = None
 
     def __str__(self):
         s = ''
@@ -331,10 +350,10 @@ class NodeOrArea():
         s += f', {self.nb_attr_pairs}, {self.nb_chars}, {self.nb_islands}'
 
         # Node-to-line or area-to-line linkage records
-        if self.adj_lines is not None:
+        if self.adj_line_ids is not None:
             s += '\n'
-            s += ', '.join([str(l) for l in self.adj_lines])
-            
+            s += ', '.join([str(l) for l in self.adj_line_ids])
+
         # Attribute code records
         if self.attrs is not None and len(self.attrs) > 0:
             s += '\n'
@@ -343,7 +362,7 @@ class NodeOrArea():
         return s
 
     @classmethod
-    def build(cls, s):
+    def build(cls, dlg, s):
         """Build a class instance from a string."""
         type = s[0:1]
         id = int(s[1:6])
@@ -361,7 +380,7 @@ class NodeOrArea():
         # Number of islands within area
         nb_islands = int(s[60:66]) if type == 'A' else None
 
-        return cls(type, id, long_, lat, nb_na_links, nb_line_links, nb_points,
+        return cls(dlg, type, id, long_, lat, nb_na_links, nb_line_links, nb_points,
                    nb_attr_pairs, nb_chars, nb_islands)
 
     # Node-to-line linkage records
@@ -410,8 +429,10 @@ class NodeOrArea():
         if self.type == 'N':
             return None
         points = []
-        endpoints = {}
-        for l in self.adj_lines:
+        for l in self.adj_line_ids:
+            if l == 0:
+                # Don't return the island points 
+                return points
             line = dlg.lines[abs(l)-1]
 
             # Negative line id: the list of coords must be read in reverse order
@@ -424,13 +445,61 @@ class NodeOrArea():
             points += x
         return points
 
+    def island_areas(self, dlg):
+        """Generate the list of areas """
+        if self.type == 'N':
+            return None
+        if self.nb_islands == 0:
+            return []
+
+        if self.nb_islands == 1:
+            i = self.adj_line_ids.index(0)
+            l = self.adj_line_ids[i+1]
+            line = dlg.lines[abs(l) - 1]
+            island_indexes = [x for x in [line.left_area, line.right_area] if x != self.id]
+            return [dlg.areas[x-1] for x in sorted(island_indexes)]
+
+        # Indexes of zeroes, introduce island sublists
+        zeroes = [i for i, e in enumerate(self.adj_line_ids) if e == 0]
+        # print(f'Area={self.id}, nzeroes={len(zeroes)}')
+        zeroes += [len(self.adj_line_ids)]  # Add a final zero
+        island_indexes = []
+        z_prev = zeroes[0]
+        for z in zeroes[1:]:
+            line_areas = None
+            for l in self.adj_line_ids[z_prev+1:z]:
+                # print(f'Area={self.id}, line: l={l}')
+                # For each line, left and right area (if we ignore the order)
+                # must be the same, and one of them is the containing area, the
+                # other one is the island. We check this. FIXME raise exception.
+                line = dlg.lines[abs(l) - 1]
+                x = sorted([line.left_area, line.right_area])
+                if line_areas is None:
+                    line_areas = x
+                elif x != line_areas:
+                    # print(f'Oops: area={self.id}, line={l}, line_areas={line_areas}, x={x}')
+                    pass
+            island_indexes.append([x for x in line_areas if x != self.id][0])
+            z_prev = z
+        return [dlg.areas[x-1] for x in sorted(island_indexes)]
+        
+    def outside_areas(self):
+        """Outside neighboring areas."""
+        return self.dlg.beyond(self, zero_stop(self.adj_line_ids))
+
+    def create_islands(self):
+        # Each island_border is a list of line_ids that delimit an island
+        self.islands = [Island(self, island_border)
+                            for island_border in between_zeroes(self.adj_line_ids)]
+
 #-------------------------------------------------------------------------------
 # Line identification records
 #-------------------------------------------------------------------------------
  
 class Line():
-    def __init__(self, type, id, start_node, end_node, left_area, right_area,
-                 nb_xy_pairs, nb_attr_pairs, nb_chars):
+    def __init__(self, dlg, type, id, start_node, end_node, left_area,
+                 right_area, nb_xy_pairs, nb_attr_pairs, nb_chars):
+        self.dlg = dlg
         self.type = type
         self.id = id
         self.start_node = start_node
@@ -467,7 +536,7 @@ class Line():
         return s
 
     @classmethod
-    def build(cls, s):
+    def build(cls, dlg, s):
         """Build a class instance from a string."""
         type = s[0:1]
         id = int(s[1:6])
@@ -482,8 +551,96 @@ class Line():
         nb_attr_pairs = int_blank(s[48:54])
         nb_chars = int_blank(s[54:60])
 
-        return cls(type, id, start_node, end_node, left_area, right_area,
+        return cls(dlg, type, id, start_node, end_node, left_area, right_area,
                    nb_xy_pairs, nb_attr_pairs, nb_chars)
+
+#-------------------------------------------------------------------------------
+# Island - 
+#-------------------------------------------------------------------------------
+
+class Island():
+    """An island appears inside an area.
+
+    It is defined by the list of lines that border the enclosing
+    area. In the area's list of adjacent lines, islands are introduced
+    by a zero. Each of these lines has the enclosing area on one side,
+    and some other area on the other side.
+
+    Areas inside the island may have inner neighboring areas that have
+    no common border with the island's enclosing border. These areas can
+    only be found by checking each area's neighbors recursively.
+
+    Every area inside an island may have its own islands.
+
+    A double recursion is necessary to find all the areas in an island:
+      - over all the neighboring areas,
+      - over all the islands
+"""
+    def __init__(self, outside_area, island_border):
+        """Initialize a new island.
+
+        island_border is a list of line ids
+"""
+        self.outside_area = outside_area
+        self.island_border = island_border
+
+        # These are just the border areas
+        self.inner_areas = outside_area.dlg.beyond(outside_area,
+                                                   self.island_border)
+
+    def __str__(self):
+        s = ''
+        s += f"    Border: {', '.join([str(x) for x in self.island_border])}\n"
+        s += (f"    Inner border areas: {', '.join([str(x.id) for x in self.inner_areas])}\n")
+        s += (f"    Toplevel sub-areas: {', '.join([str(x.id) for x in self.toplevel_sub_areas()])}")
+        return s
+
+    def neighbor_closure(self, area, dont_visit, result):
+        dont_visit.add(area)
+        if not area in result:
+            result.append(area)
+        for a in area.outside_areas():
+            if a in dont_visit:
+                continue
+            result = self.neighbor_closure(a, dont_visit, result)
+        return result
+            
+    def toplevel_sub_areas(self):
+        # FIXME can this be turned into a generator ?
+        """Get neighboring areas by moving inside into the island.
+
+        Toplevel is in terms of containment, these areas are directly
+        contained inside the enclosing area. This function returns the
+        list of all such areas. What it doesn't do is look into inner
+        areas' islands, if any.
+        """
+        # Resulting array 
+        result = self.inner_areas
+        dont_visit = set([self.outside_area])
+        for area in self.inner_areas:
+            result = self.neighbor_closure(area, dont_visit, result)
+        return result
+
+    def islands(self):
+        for area in toplevel_sub_areas(self):
+            if area.nb_islands > 0:
+                pass
+
+#-------------------------------------------------------------------------------
+# Node - 
+#-------------------------------------------------------------------------------
+
+class Node:
+    """Node in the DLG's island tree"""
+    def __init__(self, area=None):
+        self.area = area
+        self.kids = []
+
+    def show_node(self, level):
+        indent = ' '*4
+        print(f"{indent*level}{self.area.id if self.area is not None else ''}")
+        for k in self.kids:
+            k.show_node(level+1)
 
 #-------------------------------------------------------------------------------
 # DlgFile - 
@@ -506,21 +663,27 @@ class DlgFile():
 
     def __str__(self):
         return f'{self.hdr2.data_cell}, {self.hdr2.states}, {self.hdr2.section}'
+
+    @property
+    def data_cell(self):
+        return self.hdr2.data_cell
     
     def show_headers(self):
         s = ''
-        s += f'{self.hdr1}\n'
+        # s += f'{self.hdr1}\n'
         s += f'{self.hdr2}\n'
-        s += f'{self.hdr3}\n'
+        # s += f'{self.hdr3}\n'
         s += f'{self.hdr4}\n'
 
         # Projection parameters for map transformation
-        for i in range(5):
-            s += ', '.join([f'{self.proj_params[3*i+j]:1.8f}' for j in range(3)])
-            s += '\n'
+        # for i in range(5):
+        #     s += ', '.join([f'{self.proj_params[3*i+j]:1.8f}' for j in range(3)])
+        #     s += '\n'
+        i = 0
+        s += ', '.join([f'{self.proj_params[3*i+j]:1.8f}' for j in range(2)]) + '\n'
 
-        # Internal file-to-map projection transformation parameters
-        s += ', '.join([f'{x:1.8f}' for x in self.file_to_map]) + '\n'
+        # # Internal file-to-map projection transformation parameters
+        # s += ', '.join([f'{x:1.8f}' for x in self.file_to_map]) + '\n'
 
         # Control points
         for cp in self.ctrl_pts:
@@ -565,12 +728,16 @@ class DlgFile():
         s += f'Line-coordinate lists: {c.line_lists}\n'
         return s
 
-    def bounding_box(self):
-        """Determine this file's bounding box, in the file's internal units."""
+    def bounding_box(self, adj=False):
+        """Determine this file's bounding box from its data.
+
+        This box is determined by the actual data inside the file, by iterating
+        over all the coordinates of points in the lines.
+        """
         a = self.areas[0]
         min_lat = min_long = 99_999_999.00
         max_lat = max_long = -99_999_999.00
-        for l in a.adj_lines:
+        for l in a.adj_line_ids:
             # Line ids count from 1, not 0
             # FIXME expose the iterable sowe can factor this code
             for long_, lat in self.lines[abs(l)-1].coords:
@@ -583,6 +750,36 @@ class DlgFile():
                 if long_ > max_long:
                     max_long = long_
 
+        if adj:
+            # California is in zone 10, Boston in zone 19
+            t = (self.hdr4.zone - 10)*500_000
+            min_lat += t
+            max_lat += t
+            min_long += t
+            max_long += t
+            
+        return min_lat, max_lat, min_long, max_long
+
+    def ctrl_points_bbox(self):
+        """Determine this file's bounding box from its control points.
+
+        This box is determined by iterating over the coordinates of the 4
+        control points in the file's header.
+        """
+        min_lat = min_long = 99_999_999.00
+        max_lat = max_long = -99_999_999.00
+        for cp in self.ctrl_pts:
+            # cp.y = easting (~latitude)
+            if cp.y < min_lat:
+                min_lat = cp.y
+            if cp.y > max_lat:
+                max_lat = cp.y
+            # cp.x = northing (~longitude)
+            if cp.x < min_long:
+                min_long = cp.x
+            if cp.x > max_long:
+                max_long = cp.x
+            
         return min_lat, max_lat, min_long, max_long
 
     def target(self, min_lat_pc, max_lat_pc, min_long_pc, max_long_pc):
@@ -641,13 +838,52 @@ class DlgFile():
             qualifier=self.hdr2.qualifier,
             scale=self.hdr2.scale,
             section=self.hdr2.section,
+            zone=self.hdr4.zone,
+            ref_point=dict(
+                lng=self.proj_params[0],
+                lat=self.proj_params[1]
+            ),
             ctrl_pts=self.ctrl_pts,
             category=self.categ.name,
             nb_nodes=self.categ.nb_nodes,
             nb_areas=self.categ.nb_areas,
             nb_lines=self.categ.nb_lines,
         )
+
+    def beyond(self, area, border):
+        """Areas that lie beyond the given border, inside/outside."""
+        r = []
+        for l in border:
+            line = self.lines[abs(l) - 1]
+            id = (line.left_area if line.left_area != area.id else
+                      line.right_area)
+            a = self.areas[id - 1]
+            if not a in r:
+                r.append(a)
+        return r
+
+    def areas_with_islands(self):
+        for area in self.areas:
+            if area.nb_islands > 0:
+                yield area
     
+    def build_tree(self, area=None):
+        """Recursively build the island tree."""
+        n = Node(area)
+        for isle in area.islands:
+            for a in isle.toplevel_sub_areas():
+                if a.nb_islands > 0:
+                    # a becomes a node in the tree
+                    n.kids.append(self.build_tree(a))
+        return n
+
+    def island_tree(self):
+        """Initiate the island tree."""
+        root = Node()
+        for a in self.areas_with_islands():
+            root.kids.append(self.build_tree(a))
+        return root
+        
 #-------------------------------------------------------------------------------
 # load_links - 
 #-------------------------------------------------------------------------------
@@ -730,14 +966,14 @@ def _load_headers(f):
     hdr3 = Header3.build(f.read(80))
     hdr4 = Header4.build(f.read(80))
 
-    # Projection parameters for map transformation
+    # Projection parameters for map transformation (headers 5-9)
     proj_params = []
     for i in range(5):
         s = f.read(80)
         for j in range(3):
             proj_params.append(fortran(s[24*j:24*(j+1)]))
 
-    # Internal file-to-map projection transformation parameters
+    # Internal file-to-map projection transformation parameters (header 10)
     file_to_map = []
     s = f.read(80)
     for i in range(4):
@@ -769,11 +1005,11 @@ def _load_data(f):
     nodes = []
     for i in range(categ.nb_nodes):
         # Node identification record
-        x = NodeOrArea.build(f.read(80))
+        x = NodeOrArea.build(dlg, f.read(80))
 
         # Node-to-line linkage record
         if categ.node_line_links and x.nb_line_links > 0:
-            x.adj_lines = load_links(f, x.nb_line_links)
+            x.adj_line_ids = load_links(f, x.nb_line_links)
 
         # Attribute code records
         if x.nb_attr_pairs > 0:
@@ -785,11 +1021,11 @@ def _load_data(f):
     areas = []
     for i in range(categ.nb_areas):
         # Area identification record
-        x = NodeOrArea.build(f.read(80))
+        x = NodeOrArea.build(dlg, f.read(80))
 
         # Area-to-line linkage record
         if categ.area_line_links:
-            x.adj_lines = load_links(f, x.nb_line_links)
+            x.adj_line_ids = load_links(f, x.nb_line_links)
 
         # Attribute code records
         if x.nb_attr_pairs > 0:
@@ -801,7 +1037,7 @@ def _load_data(f):
     lines = []
     for i in range(categ.nb_lines):
         # Line identification record
-        x = Line.build(f.read(80))
+        x = Line.build(dlg, f.read(80))
 
         # Line-to-line linkage record
         if categ.line_lists:
@@ -817,6 +1053,10 @@ def _load_data(f):
     dlg.nodes = nodes
     dlg.areas = areas
     dlg.lines = lines
+
+    # Now that we have lines, we can create islands
+    for a in areas:
+        a.create_islands()
 
     return dlg
 
@@ -873,3 +1113,21 @@ if __name__ == '__main__':
 
     # show_data(filepath)
     # print(dlg.show_tgt_areas())
+
+    # print(dlg.island_areas())
+
+    # # Islands
+    # for area in sorted(list(dlg.areas_with_islands()),
+    #                    key=lambda a: a.nb_islands, reverse=True):
+    #     print(f'Area {area.id}: ({area.nb_islands} islands)')
+    #     for i, isle in enumerate(area.islands):
+    #         print(f'  Island {i}:')
+    #         print(isle)
+
+    # print()
+    # print(f'There are {len(list(dlg.areas_with_islands()))} areas'
+    #       + ' with islands.')
+
+    # print('Island tree')
+    # root = dlg.island_tree()
+    # root.show_node(0)

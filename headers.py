@@ -3,7 +3,9 @@
 """Given a place name and state, print out the headers of all the DLG-3 files
 that make up both halves of the quadrangle.  """
 
-import os import sys import dlg
+import os
+import sys
+import dlg
 
 #-------------------------------------------------------------------------------
 # show_headers - 

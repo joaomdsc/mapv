@@ -7,7 +7,8 @@ import os
 import re
 import json
 import requests
-import geocoder
+# import geocoder
+from storage import mapnames
       
 #-------------------------------------------------------------------------------
 # I want stdout to be unbuffered, always
@@ -26,59 +27,59 @@ import sys
 sys.stdout = Unbuffered(sys.stdout)
 
 #-------------------------------------------------------------------------------
-# names_from_filesystem
+# count_names
 #-------------------------------------------------------------------------------
 
-def names_from_filesystem():
+def count_names(states):
+    cnt = 0
+    for state, names in states.items():
+        cnt += len(names)
+    return cnt
+
+#-------------------------------------------------------------------------------
+# filesystem_names
+#-------------------------------------------------------------------------------
+
+def filesystem_names():
     """Return a 2-level hierarchy of state/place name dictionaries."""
-    
-    path = r'C:\x\data\dds.cr.usgs.gov\pub\data\DLG\100K'
 
     states = {}
-    for f in os.listdir(path):
-        if len(f) > 1:
-            continue
-        # Uppercase initials
-        letter = os.path.join(path, f)
-
-        for name in os.listdir(letter):
-            if name == 'index.html':
-                continue
-            m = re.match("([a-z'-_.]+)-[ew]_([A-Z]{2})", name)
-            if not m:
-                print(F'Unable to parse "{name}"')
-                continue
-            # We can't assume foobar-w_XY follows foobar-e_XY, because foobar
-            # may appear in more than one state.
-            n = m.group(1)
-            s = m.group(2)
-            # n, s is designated as a quadrangle, with two halves
-            # (east/west). Each half represents a 30-minute area.
-            if s in states:
-                if n not in states[s]:
-                    states[s][n] = True
-            else:
-                states[s] = {}
-                states[s][n] = True
+    for state, name in mapnames():
+        # state, name corresponds to a quadrangle, with two halves
+        # (east/west). Each half represents a 30-minute area.
+        if state not in states:
+            states[state] = {}
+        states[state][name] = True
     return states
 
 #-------------------------------------------------------------------------------
-# cleanup_names
+# clean_names
 #-------------------------------------------------------------------------------
 
-def cleanup_names(states):
-    """Cleanup the list of names to avoid query misses and duplicates."""
-    d = {}
-    for state in sorted(states.keys()):
-        d[state] = {}
-        for name in states[state].keys():
-            m = re.match(f"([a-z'-_.]+)_(east|west|north|south|island)", name)
-            if m:
-                d[state][m.group(1)] = True
-            else:
-                d[state][name] = True
-    return d
-            
+def cleanup_names(names):
+    """Cleanup a list of names to avoid query misses and duplicates
+    when calling geocoding. WARNING: this generates duplicates."""
+    cnt = 0
+    for state, name in names:
+        m = re.match(f"([a-z'-_.]+)_(east|west|north|south|island|mountain)",
+                     name)
+        if not m:
+            yield(state, name)
+        else:
+            cnt += 1
+    print(f'unclean={cnt}')
+        
+
+def clean_names():
+    states = {}
+    for state, name in cleanup_names(mapnames()):
+        # state, name corresponds to a quadrangle, with two halves
+        # (east/west). Each half represents a 30-minute area.
+        if state not in states:
+            states[state] = {}
+        states[state][name] = True
+    return states
+    
 #-------------------------------------------------------------------------------
 # geocode_names
 #-------------------------------------------------------------------------------
@@ -105,25 +106,7 @@ def geocode_names(states):
 #===============================================================================
 
 if __name__ == '__main__':
-    with open('usgs_geocoded_names.json', 'r') as f:
-        obj = json.loads(f.read())
 
-    # print(f'Found {len(obj)} states')
-    # total = 0
-    # limbo = []
-    # for k, v in obj.items():
-    #     print(f'{k} {len(v)}')
-    #     total += len(v)
-        
-    #     # Names in this state with unknown coordinates
-    #     limbo += [(name, k) for name, coords in v.items()
-    #                     if coords[0] == '0.0' and coords[1] == '0.0']
-
-    # print(f'Found {len(limbo)} unknown locations')
-    # for name in limbo:
-    #     print(name)
-    # print(f'Total {total} names')
-
-    for k, v in sorted(obj.items()):
-        for nm in sorted(v.keys()):
-            print(f'{k}\t{nm}')
+    nm = filesystem_names()
+    clean_nm = clean_names()
+    print(f'Names: total={count_names(nm)}, clean={count_names(clean_nm)}')
