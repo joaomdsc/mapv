@@ -370,3 +370,40 @@ The double iteration is implemented in NodeOrArea:inner_areas().
   - proper repaint, including on resize, with double-buffering
   - overlays
   - list of check buttons for layers
+
+--------------------------------------------------------------------------------
+
+* 2020/05/06
+
+** Shape types in my current datasets
+
+IGN's Route500 data set:
+    Point
+    PointZ
+    Polygon
+    PolyLine
+
+NHD from The National Map:
+    PointZ
+    PolyLine
+    PolyLineZ
+    Polygon
+    PolygonZ
+
+Code so far has implemented:
+    NullShape
+    Point
+    Polygon
+    PolyLine
+    PointZ
+    PolygonZ
+    PolyLineZ
+    PointM
+    PolygonM
+    PolyLineM
+    
+Missing:
+    MultiPoint
+    MultiPointZ
+    MultiPointM
+    MultiPatch
