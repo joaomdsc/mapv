@@ -13,76 +13,59 @@ class MainPanel(wx.Panel):
     drawing the maps, the right one (smaller) is for controls.
     """
     
-    def __init__(self, *args, parent_frame=None, **kw):
+    def __init__(self, *args, **kw):
         super(MainPanel, self).__init__(*args, **kw)
 
-        self.parent_frame = parent_frame
-        hbox = wx.BoxSizer(wx.HORIZONTAL)
-
-        # Create controls panel
-        ctrl = wx.Panel(self)
-        
+        # Lay out controls vertically
         vbox = wx.BoxSizer(wx.VERTICAL)
 
         # First row
         hbox1 = wx.BoxSizer(wx.HORIZONTAL)
-        txt = wx.StaticText(ctrl, -1, "Map controls")
-        hbox1.Add(txt, flag=wx.RIGHT, border=8)
-        vbox.Add(txt)
-
-        # Draw line
-
-        # Third row
-        hbox1 = wx.BoxSizer(wx.HORIZONTAL)
-        lbl = wx.StaticText(ctrl, label='Line nbr')
-        hbox1.Add(lbl, flag=wx.RIGHT, border=8)
         
-        self.tcl = wx.TextCtrl(ctrl, style=wx.TE_PROCESS_ENTER)
+        txt = wx.StaticText(self, label="Map controls")
+        txt.SetFont(txt.GetFont().MakeBold())
+        
+        hbox1.Add(txt)
+        vbox.Add(hbox1, flag=wx.TOP|wx.LEFT, border=10)
+
+        # Second row - draw line
+        hbox1 = wx.BoxSizer(wx.HORIZONTAL)
+        hbox1.Add(wx.StaticText(self, label='Line nbr'), flag=wx.RIGHT, border=8)
+
+        self.tcl = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
         hbox1.Add(self.tcl, proportion=1)
         vbox.Add(hbox1, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
 
-        # Fourth row
-        btn = wx.Button(ctrl, label='Draw line', size=(70, 30))
-        self.Bind(wx.EVT_BUTTON, self.OnButtonLine, btn)
-        vbox.Add(btn, flag=wx.LEFT, border=10)
-
-        # Draw area
-
         # Third row
+        btn = wx.Button(self, label='Draw line', size=(70, 30))
+        vbox.Add(btn, flag=wx.LEFT|wx.TOP, border=10)
+        self.Bind(wx.EVT_BUTTON, self.on_button_line, btn)
+
+        # Fourth row - draw area
         hbox1 = wx.BoxSizer(wx.HORIZONTAL)
-        lbl = wx.StaticText(ctrl, label='Area nbr')
-        hbox1.Add(lbl, flag=wx.RIGHT, border=8)
-        
-        self.tca = wx.TextCtrl(ctrl, style=wx.TE_PROCESS_ENTER)
+        hbox1.Add(wx.StaticText(self, label='Area nbr'), flag=wx.RIGHT, border=8)
+
+        self.tca = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
         hbox1.Add(self.tca, proportion=1)
         vbox.Add(hbox1, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
 
-        # Fourth row
-        btn = wx.Button(ctrl, label='Draw area', size=(70, 30))
-        self.Bind(wx.EVT_BUTTON, self.OnButtonArea, btn)
-        vbox.Add(btn, flag=wx.LEFT, border=10)
+        # Fifth row
+        btn = wx.Button(self, label='Draw area', size=(70, 30))
+        vbox.Add(btn, flag=wx.LEFT|wx.TOP|wx.BOTTOM, border=10)
+        self.Bind(wx.EVT_BUTTON, self.on_button_area, btn)
 
-        ctrl.SetSizer(vbox)
+        # Finished doing layout
+        self.SetSizer(vbox)
 
-        hbox.Add(ctrl, flag=wx.EXPAND)
-
-        # Create drawing panel
-        drw = wx.Panel(self)
-        hbox.Add(drw, proportion=1)
-        
-        self.SetSizer(hbox)
-
-    def OnButtonLine(self, _):
+    def on_button_line(self, _):
         s = self.tcl.GetValue()
         line_nbr = -1 if s == '' else int(s)
-        # print(f'Drawing line {line}.')
-        self.parent_frame.on_draw_line(line_nbr)
+        self.GetParent().on_draw_line(line_nbr)
 
-    def OnButtonArea(self, _):
+    def on_button_area(self, _):
         s = self.tca.GetValue()
         area_nbr = -1 if s == '' else int(s)
-        # print(f'Drawing area {area}.')
-        self.parent_frame.on_draw_area(area_nbr)
+        self.GetParent().on_draw_area(area_nbr)
 
 #===============================================================================
 # main

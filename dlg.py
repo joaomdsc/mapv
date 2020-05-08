@@ -25,7 +25,7 @@ def attrs_counts(stuff):
 
     Here stuff means an array of objects that have attributes, typically
     dlg.nodes, or areas, or lines..
-"""
+    """
     d = {}
     for x in stuff:
         # For all nodes, ... or all areas...
@@ -1077,8 +1077,8 @@ if __name__ == '__main__':
     # print(dlg.presences())
     # print(f'Bbox: {dlg.bounding_box()}')
     # print()
-    print(dlg.show_headers())
-    # print(dlg.show_all())
+    # print(dlg.show_headers())
+    print(dlg.show_all())
     # print(dlg.show_attributes())
 
     # show_data(filepath)

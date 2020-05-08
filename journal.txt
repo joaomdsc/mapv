@@ -375,20 +375,7 @@ The double iteration is implemented in NodeOrArea:inner_areas().
 
 * 2020/05/06
 
-** Shape types in my current datasets
-
-IGN's Route500 data set:
-    Point
-    PointZ
-    Polygon
-    PolyLine
-
-NHD from The National Map:
-    PointZ
-    PolyLine
-    PolyLineZ
-    Polygon
-    PolygonZ
+** Shape types
 
 Code so far has implemented:
     NullShape
@@ -407,3 +394,31 @@ Missing:
     MultiPointZ
     MultiPointM
     MultiPatch
+
+--------------------------------------------------------------------------------
+
+* 2020/05/07
+
+** To do in wxPython
+
+- layout with BoxSizers - DONE
+  - avoid overlapping - DONE
+  - placing the ctrl panel on the right - DONE
+- resize events
+  - correct repainting
+  - double-buffering
+- overlays
+- floatingcanvas
+
+--------------------------------------------------------------------------------
+
+* 2020/05/08
+
+* Commit
+
+Added a new model for IGN's Route 500 product. 
+Controls panel now accesses callback through its parent.
+Fix panel layout issues, now drawing on a wx.Window, with no overlapping. Also
+fix some of the repaint issues using a new flag 'need_refresh'.
+Boundaries layer now displays transparent polygon.
+Example using the new 2D api with paths is in wx/shapes_gc.py.

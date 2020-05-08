@@ -19,8 +19,8 @@ class UsgsModel(Model):
                 # Four sections, four dlg files 
                 dlg = load_data(mp)
                 r = dlg.summary()
-                if not r['states'] == 'CA':
-                    continue
+                # if not r['states'] == 'CA':
+                #     continue
                 if not mapname in self.names:
                     self.names[mapname] = []
                 self.names[mapname].append((dlg, r))

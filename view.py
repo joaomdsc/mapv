@@ -11,6 +11,7 @@ from usgs import Usgs
 from model import Model
 from model_usgs import UsgsModel
 from model_dlg3 import Dlg3Model
+from model_route500 import Route500
 from bitmaps import nbr_brush
 
 #-------------------------------------------------------------------------------
@@ -38,7 +39,7 @@ class DlgView(wx.Frame):
     def __init__(self, filepath=None, mapname=None):
         """mapname is the mapname-e_STATE identifier described in DLG 00README.
         """
-        super(DlgView, self).__init__(None, -1, title='Mapv', size=(900, 600))
+        super().__init__(None, -1, title='Mapv', size=(900, 600))
 
         self.SetTitle('Mapv')
         self.CreateStatusBar()
@@ -49,13 +50,28 @@ class DlgView(wx.Frame):
         self.SetMenuBar(self.create_menus())
         self.Show(True)
 
-        # Main panel
-        self.panel = MainPanel(self, parent_frame=self)
-        # self.panel.Bind(wx.EVT_SIZE, self.on_size)
-        self.panel.Bind(wx.EVT_PAINT, self.on_paint)
+        # Horizontal sizer
+        hbox = wx.BoxSizer(wx.HORIZONTAL)
+        
+        # Controls panel
+        self.panel = MainPanel(self)
+        hbox.Add(self.panel, 0, wx.EXPAND, 0)
+
+        # Drawing area
+        self.win = wx.Window(self, size=(300,400))
+        hbox.Add(self.win, 1, wx.EXPAND, 0)
+        
+        hbox.SetSizeHints(self)
+        self.SetSizer(hbox)
+
+        # Binding events
+        self.win.Bind(wx.EVT_PAINT, self.on_paint)
+        
         self.pen = None
         self.brush = None
-
+        self.first_time = True
+        self.need_refresh = False
+        
         # The view needs its model, so it can show it
         self.model = None
 
@@ -67,21 +83,39 @@ class DlgView(wx.Frame):
             set_dir(os.path.dirname(filepath))
             self.model = Dlg3Model()
             self.model.open(filepath)
-
+            self.need_refresh = True
+            
         if mapname is not None:
             self.model = Dlg3Model()
             open_mapname(mapname)
+            self.need_refresh = True
+
+    def on_open_route(self, _):
+        d = wx.FileDialog(self, 'Open a Route 500 file', get_dir(), '',
+                          '*.*', wx.FD_OPEN)
+        if d.ShowModal() == wx.ID_OK:
+            dir = d.GetDirectory()
+            set_dir(dir)
+            file = d.GetFilename()
+            if self.model is None or self.model.kind != 'Route500':
+                self.model = Route500()
+            self.model.open(os.path.join(dir, file))
+            self.need_refresh = True
+            self.Refresh()
+        d.Destroy()
 
     def on_open_file(self, _):
         d = wx.FileDialog(self, 'Open a DLG-3 file', get_dir(), '',
                           '*.*', wx.FD_OPEN)
         if d.ShowModal() == wx.ID_OK:
             dir = d.GetDirectory()
+            self.category = os.path.split(dir)[1]
             set_dir(dir)
             file = d.GetFilename()
             if self.model is None or self.model.kind == 'Usgs':
                 self.model = Dlg3Model()
             self.model.open(os.path.join(dir, file))
+            self.need_refresh = True
             self.Refresh()
         d.Destroy()
 
@@ -95,6 +129,7 @@ class DlgView(wx.Frame):
         if self.model is None or self.model.kind == 'Usgs':
             self.model = Dlg3Model()
         self.model.open_mapname(mapname)
+        self.need_refresh = True
         self.Refresh()
             
     def on_clear(self, _):
@@ -102,11 +137,13 @@ class DlgView(wx.Frame):
         self.showing_usgs = None
         self.dc.SetBackground(wx.Brush('white'))
         self.dc.Clear()
+        self.need_refresh = True
         self.Refresh()
             
     def on_refresh(self, _):
         self.dc.SetBackground(wx.Brush('white'))
         self.dc.Clear()
+        self.need_refresh = True
         self.Refresh()
 
     def show_usgs(self, _):
@@ -114,6 +151,7 @@ class DlgView(wx.Frame):
         s = f'Loaded {len(self.model.names.keys())} DLG-3 files'
         self.GetStatusBar().PushStatusText(s)
         self.add_menu_entries(self.model.places())
+        self.need_refresh = True
         self.Refresh()
 
     def show_summary(self, _):
@@ -155,6 +193,9 @@ class DlgView(wx.Frame):
         self.places_submenu = m  # for adding/removing items
         self.places_menuitem = mi  # for enabling/disabling the submenu
 
+        mi = fm.Append(wx.ID_ANY, '&Open Route 500 file', 'Open a Route 500 file')
+        self.Bind(wx.EVT_MENU, self.on_open_route, mi)
+        
         mi = fm.Append(wx.ID_ANY, '&Clear', 'Clear all files')
         self.Bind(wx.EVT_MENU, self.on_clear, mi)
         mi = fm.Append(wx.ID_ANY, 'Refresh', 'Refresh the display')
@@ -243,34 +284,42 @@ class DlgView(wx.Frame):
         # Draw areas
         for a in dlg.areas:
             self.draw_area(dlg, a)
-
+        
         # Draw lines
         for line in dlg.lines:
             self.draw_line(dlg, line)
 
     def on_draw_area(self, area_nbr):
+        if self.model is None:
+            self.GetStatusBar().PushStatusText('No file open')
+            return
         self.model.area = (self.model.dlgs[0].areas[area_nbr-1]
                            if area_nbr != -1 else None)
         self.bitmap_brush = nbr_brush(area_nbr)
+        self.need_refresh = True
         self.Refresh()
-
+            
     def draw_area(self, dlg, area, pen=None, brush=None):
         """Paint the area's polygon, and all the areas inside its islands."""
+        if dlg.categ.name == 'BOUNDARIES':
+            self.draw_area_boundaries(dlg, area, pen, brush)
+            return
         x_win, y_win = self.t
 
         # Draw the area's polygon with its own style 
         attr_pen = attr_brush = None
         if area.attrs is not None and len(area.attrs) > 0:
             maj, min = area.attrs[0]
-            attr_pen, attr_brush = get_style('hydrography', 'areas', maj, min)
+            attr_pen, attr_brush = get_style(dlg.categ.name.lower(), 'areas', maj, min, id=area.id)
 
         # Priority: function argument, then attributes, then default
         self.dc.SetPen(pen if pen is not None else
                  attr_pen if attr_pen is not None else
                  self.pen)
-        self.dc.SetBrush(brush if brush is not None else
-                 attr_brush if attr_brush is not None else
-                 self.brush)
+        br = (brush if brush is not None else
+              attr_brush if attr_brush is not None else
+              self.brush)
+        self.dc.SetBrush(br)
         
         points = [(x_win(long_), y_win(lat))
                       for long_, lat in area.get_points(dlg)]
@@ -279,9 +328,39 @@ class DlgView(wx.Frame):
         # Now draw all the areas inside the islands
         for a in area.inner_areas():
             self.draw_area(dlg, a)
+
+    def draw_area_boundaries(self, dlg, area, pen=None, brush=None):
+        """Paint the area's polygon, and all the areas inside its islands."""
+        x_win, y_win = self.t
+
+        # Draw the area's polygon with its own style 
+        attr_pen = attr_brush = None
+        if area.attrs is not None and len(area.attrs) > 0:
+            for a in area.attrs:
+                maj, min = a
+                if int(maj) == 90:
+                    attr_pen, attr_brush = get_style(self.category, 'areas',
+                                                     maj, min, id=area.id)
+                    # if int(min) == 100:
+                    if attr_brush is not None:
+                        # Priority: function argument, then attributes, then default
+                        self.gcdc.SetPen(attr_pen if attr_pen is not None else wx.Pen('black'))
+                        self.gcdc.SetBrush(attr_brush)
+
+                        points = [(x_win(long_), y_win(lat))
+                                      for long_, lat in area.get_points(dlg)]
+                        self.gcdc.DrawPolygon(points)
+
+                        # Now draw all the areas inside the islands
+                        for a in area.inner_areas():
+                            self.draw_area(dlg, a)
  
     def on_draw_line(self, line_nbr):
+        if self.model is None:
+            self.GetStatusBar().PushStatusText('No file open')
+            return
         self.model.line = self.model.dlgs[0].lines[line_nbr-1] if line_nbr != -1 else None
+        self.need_refresh = True
         self.Refresh()
 
     def draw_line(self, dlg, line, pen=None, brush=None):
@@ -290,7 +369,7 @@ class DlgView(wx.Frame):
         attr_pen = attr_brush = None
         if line.attrs is not None and len(line.attrs) > 0:
             maj, min = line.attrs[0]
-            attr_pen, attr_brush = get_style('hydrography', 'lines', maj, min)
+            attr_pen, attr_brush = get_style(dlg.categ.name.lower(), 'lines', maj, min)
             
         # Priority: function argument, then attributes, then default
         self.dc.SetPen(pen if pen is not None else
@@ -309,6 +388,25 @@ class DlgView(wx.Frame):
                             x_win(long_), y_win(lat))
                 prev_lat = lat
                 prev_long = long_
+
+    def draw_shp_line(self, shp, rec):
+        x_win, y_win = self.t
+        
+        prev_x, prev_y = rec.points[0]
+        for x, y in rec.points[1:]:
+                self.dc.DrawLine(x_win(prev_x), y_win(prev_y),
+                            x_win(x), y_win(y))
+                prev_y = y
+                prev_x = x
+
+    def draw_shp_lines(self, shp):
+        x_win, y_win = self.t
+
+        self.dc.SetPen = (wx.Pen('black'))
+        self.dc.SetBrush(wx.Brush('black'))
+        
+        for rec in shp.recs:
+            self.draw_shp_line(shp, rec)
 
     def draw_usgs(self, model):
         x_win, y_win = self.t
@@ -379,19 +477,24 @@ class DlgView(wx.Frame):
             self.dc.DrawCircle(x_win(lng), y_win(lat), 2)
 
     def on_size(self, _):
+        self.need_refresh = True
         self.Refresh()
 
     def on_paint(self, _):
-        self.dc = wx.PaintDC(self.panel)
+        if not self.need_refresh:
+            return
+        self.need_refresh = False
+        self.dc = wx.PaintDC(self.win)
+        self.gcdc = wx.GCDC(self.dc)
         self.dc.SetBackground(wx.Brush('white'))
         self.dc.Clear()
         self.pen = self.dc.GetPen()
         self.brush = self.dc.GetBrush()
-            
+
         # If there are no models yet, nothing to paint
         if self.model is None:
             return
-        
+
         # Define transformation form model to drawing window 
         self.t = self.get_transform()
 
@@ -401,10 +504,14 @@ class DlgView(wx.Frame):
             self.draw_usgs(self.model)
             return
 
+        elif self.model.kind == 'Route500':
+            self.draw_shp_lines(self.model.dlgs[0])
+            return
+
         # Draw all DLGs
         for dlg in self.model.dlgs:
             self.dlg_draw(dlg)
-            
+
         # Special requests act on dlgs[0]
         if self.model.line is not None:
             self.draw_line(self.model.dlgs[0], self.model.line, pen=wx.Pen('red'))
@@ -412,7 +519,7 @@ class DlgView(wx.Frame):
             self.draw_area(self.model.dlgs[0], self.model.area, pen=wx.Pen('black'),
                            brush=wx.Brush('red'))
                            # brush=self.bitmap_brush)
-    
+        
 #===============================================================================
 # main
 #===============================================================================
