@@ -77,8 +77,10 @@ def local_mapnames():
             m = re.match(pattern, f)
             if not m:
                 continue
+            # Temp. just California (pb with UTM zones)
+            if not f.endswith('_CA'):
+                continue
             map_path = os.path.join(letter, f)
-
             # When a mapname hasn't been downloaded, the directory usually
             # holds just an index.html file.
             if len(os.listdir(map_path)) <= 1:
