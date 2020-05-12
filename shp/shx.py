@@ -3,8 +3,8 @@
 """Shapefile index file parser."""
 
 import sys
-import common as c
-from common import ShapeType, ShpParser, MainFileHeader
+from .common import ShapeType, ShpParser, MainFileHeader
+import shp.common as c
 
 #-------------------------------------------------------------------------------
 # IndexRec

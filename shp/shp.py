@@ -4,15 +4,17 @@
 
 import os
 import sys
-import common as c
-from common import ShapeType, ShpParser, MainFileHeader
-import shx
+from .common import ShapeType, ShpParser, MainFileHeader
+import shp.common as c
+from .shx import build_header
+
+first = True
 
 #-------------------------------------------------------------------------------
 # ShpBaseRec
 #-------------------------------------------------------------------------------
 
-class ShpBaseRec():
+class ShpBaseRec:
     def __init__(self, rec_nbr, offset, rec_len, shape_type):
        self.rec_nbr = rec_nbr
        self.offset = offset
@@ -116,7 +118,7 @@ class PolyRec(ShpBaseRec):
 #-------------------------------------------------------------------------------
 
 class PointMRec(PointRec):
-    def __init__(self, rec_nbr, offset, rec_len, shape_type, X, Y, M):
+    def __init__(self, rec_nbr, offset, rec_len, shape_type, X, Y, M=None):
         super().__init__(rec_nbr, offset, rec_len, shape_type, X, Y)
         self.M = M
 
@@ -129,20 +131,12 @@ class PointMRec(PointRec):
     @classmethod
     def build(cls, rec_nbr, offset, rec_len, s, shape_type):
         """Build a class instance from a string."""
-        # # FIXME can't use super() because there is no class instance yet. Could
-        # # I turn these build() functions into constructors so I could invoke
-        # # the superclass's constructor inside this one ? The problem is I don't
-        # # want to create an instance of the super class.
-        # X = c.dbl_lit_end(s[4:12])
-        # Y = c.dbl_lit_end(s[12:20])
         
         # Call superclass's factory method, Alex Martelli says it will create
-        # an instance of this class. FIXME Could I have called this 'build'
-        # instead of 'buildM', and called super().build() instead of 'build' ??
-        obj = build(rec_nbr, offset, rec_len, s, shape_type)
+        # an instance of this class.
+        obj = super().build(rec_nbr, offset, rec_len, s, shape_type)
 
-        # Enrich with subclass members. See PolyRec:build(), and the shapefile
-        # specification p.8, p.13 fo the explanation of X, Y.
+        # Enrich with subclass members.
         obj.M = c.dbl_lit_end(s[20:28])
 
         return obj
@@ -152,7 +146,8 @@ class PointMRec(PointRec):
 #-------------------------------------------------------------------------------
 
 class PointZRec(PointRec):
-    def __init__(self, rec_nbr, offset, rec_len, shape_type, X, Y, Z, M):
+    def __init__(self, rec_nbr, offset, rec_len, shape_type, X, Y, Z=None,
+                 M=None):
         super().__init__(rec_nbr, offset, rec_len, shape_type, X, Y)
         self.Z = Z
         self.M = M
@@ -171,26 +166,17 @@ class PointZRec(PointRec):
     @classmethod
     def build(cls, rec_nbr, offset, rec_len, s, shape_type):
         """Build a class instance from a string."""
-        # FIXME can't use super() because there is no class instance yet. Could
-        # I turn these build() functions into constructors so I could invoke
-        # the superclass's constructor inside this one ? The problem is I don't
-        # want to create an instance of the super class.
-        X = c.dbl_lit_end(s[4:12])
-        Y = c.dbl_lit_end(s[12:20])
-        Z = c.dbl_lit_end(s[20:28])
-        M = c.dbl_lit_end(s[28:36])
         
         # # Call superclass's factory method, Alex Martelli says it will create
         # # an instance of this class. FIXME Could I have called this 'build'
         # # instead of 'buildM', and called super().build() instead of 'build' ??
-        # obj = PointZRec.build(rec_nbr, offset, rec_len, s, shape_type)
+        obj = super().build(rec_nbr, offset, rec_len, s, shape_type)
 
-        # # Enrich with subclass members. See PolyRec:build(), and the shapefile
-        # # specification p.8, p.13 fo the explanation of X, Y.
-        # obj.Z = c.dbl_lit_end(s[20:28])
-        # obj.M = c.dbl_lit_end(s[28:36])
+        # Enrich with subclass members. 
+        obj.Z = c.dbl_lit_end(s[20:28])
+        obj.M = c.dbl_lit_end(s[28:36])
 
-        return cls(rec_nbr, offset, rec_len, shape_type, X, Y, Z, M)
+        return obj
 
 #-------------------------------------------------------------------------------
 # PolyMRec
@@ -199,7 +185,7 @@ class PointZRec(PointRec):
 class PolyMRec(PolyRec):
     """Represents both PolyLineM's and PolygonM's"""
     def __init__(self, rec_nbr, offset, rec_len, shape_type, box, num_parts,
-                 num_points, parts, points, Mmin, Mmax, Marray):
+                 num_points, parts, points, Mmin=None, Mmax=None, Marray=None):
         super().__init__(rec_nbr, offset, rec_len, shape_type)
         self.Mmin = Mmin
         self.Mmax = Mmax
@@ -219,36 +205,19 @@ class PolyMRec(PolyRec):
     @classmethod
     def build(cls, rec_nbr, offset, rec_len, s, shape_type):
         """Build a class instance from a string."""
-        # Duplicate work from superclass's factory method
-        box = c.dbls_lit_end(s[4:36], n=4)
-        num_parts = c.int_lit_end(s[36:40])
-        num_points = c.int_lit_end(s[40:44])
-        X = 44 + 4*num_parts
-        parts = c.ints_lit_end(s[44:X], num_parts)
-        Y = X + 16*num_points
-        coords = c.dbls_lit_end(s[X:Y], 2*num_points)
-        points = [(coords[i], coords[i+1]) for i in range(0, len(coords), 2)]
-
-        # Enrich subclass
-        Mmin, Mmax = c.dbls_lit_end(s[Y:Y+16], n=2)
-        Marray = c.dbls_lit_end(s[Y+16:Y+16+8*num_points], n=num_points)
-
-        return cls(rec_nbr, offset, rec_len, shape_type, box, num_parts,
-                   num_points, parts, points, Mmin, Mmax, Marray)
         
         # # Call superclass's factory method, Alex Martelli says it will create
-        # # an instance of this class. FIXME Could I have called this 'build'
-        # # instead of 'buildM', and called super().build() instead of 'build' ??
-        # obj = build(rec_nbr, offset, rec_len, s, shape_type)
+        # # an instance of this class.
+        obj = super().build(rec_nbr, offset, rec_len, s, shape_type)
 
-        # # Enrich with subclass members. See PolyRec:build(), and the shapefile
-        # # specification p.8, p.13 fo the explanation of X, Y.
-        # X = 44 + 4*obj.num_parts
-        # Y = X + 16*obj.num_points
-        # obj.Mmin, obj.Mmax = c.dbls_lit_end(s[Y:Y+16], n=2)
-        # obj.Marray = c.dbls_lit_end(s[Y+16:Y+16+8*obj.num_points], n=obj.num_points)
-
-        # return obj
+        # Enrich with subclass members. See PolyRec:build(), and the shapefile
+        # specification p.8, p.13 fo the explanation of X, Y.
+        X = 44 + 4*obj.num_parts
+        Y = X + 16*obj.num_points
+        obj.Mmin, obj.Mmax = c.dbls_lit_end(s[Y:Y+16], n=2)
+        obj.Marray = c.dbls_lit_end(s[Y+16:Y+16+8*obj.num_points],
+                                    n=obj.num_points)
+        return obj
 
 #-------------------------------------------------------------------------------
 # PolyZRec
@@ -257,8 +226,8 @@ class PolyMRec(PolyRec):
 class PolyZRec(PolyRec):
     """Represents both PolyLineZ's and PolygonZ's"""
     def __init__(self, rec_nbr, offset, rec_len, shape_type, box, num_parts,
-                 num_points, parts, points, Zmin, Zmax, Zarray, Mmin, Mmax,
-                 Marray):
+                 num_points, parts, points, Zmin=None, Zmax=None, Zarray=None,
+                 Mmin=None, Mmax=None, Marray=None):
         super().__init__(rec_nbr, offset, rec_len, shape_type, box, num_parts,
                  num_points, parts, points)
         # Specific to subclass
@@ -289,34 +258,33 @@ class PolyZRec(PolyRec):
     @classmethod
     def build(cls, rec_nbr, offset, rec_len, s, shape_type):
         """Build a class instance from a string."""
-        
-        # Duplicate work from superclass's factory method
-        box = c.dbls_lit_end(s[4:36], n=4)
-        num_parts = c.int_lit_end(s[36:40])
-        num_points = c.int_lit_end(s[40:44])
-        X = 44 + 4*num_parts
-        parts = c.ints_lit_end(s[44:X], num_parts)
-        Y = X + 16*num_points
-        coords = c.dbls_lit_end(s[X:Y], 2*num_points)
-        points = [(coords[i], coords[i+1]) for i in range(0, len(coords), 2)]
 
-        # Enrich subclass
-        Zmin, Zmax = c.dbls_lit_end(s[Y:Y+16], n=2)
-        Z = Y+16+8*num_points
-        Zarray = c.dbls_lit_end(s[Y+16:Z], n=num_points)
-        
-        Mmin, Mmax = c.dbls_lit_end(s[Z:Z+16], n=2)
-        Marray = c.dbls_lit_end(s[Z+16:Z+16+8*num_points], n=num_points)
+        # Call the superclass's factory method, it will still create an
+        # instance of *this* class, PolyZRec, and not PolyRec. The call to
+        # cls(...) in PolyRec:build() actually calls PolyZRec's __init__
+        # function, which is why Zmin, Zmax, etc, are optional. If not, we get
+        # the error : "TypeError: __init__() missing 6 required positional
+        # arguments: 'Zmin', 'Zmax', 'Zarray', 'Mmin', 'Mmax', and 'Marray'"
 
-        return cls(rec_nbr, offset, rec_len, shape_type, box, num_parts,
-                   num_points, parts, points, Zmin, Zmax, Zarray, Mmin, Mmax,
-                   Marray)
+        obj = super().build(rec_nbr, offset, rec_len, s, shape_type)
+
+        # Enrich this instance of PolyZRec (only the base class part has been
+        # done so far)
+        X = 44 + 4*obj.num_parts
+        Y = X + 16*obj.num_points
+        obj.Zmin, obj.Zmax = c.dbls_lit_end(s[Y:Y+16], n=2)
+        Z = Y+16+8*obj.num_points
+        obj.Zarray = c.dbls_lit_end(s[Y+16:Z], n=obj.num_points)
+        obj.Mmin, obj.Mmax = c.dbls_lit_end(s[Z:Z+16], n=2)
+        obj.Marray = c.dbls_lit_end(s[Z+16:Z+16+8*obj.num_points],
+                                    n=obj.num_points)
+        return obj
 
 #-------------------------------------------------------------------------------
 # ShapeFile - 
 #-------------------------------------------------------------------------------
 
-class ShapeFile():
+class ShapeFile:
     def __init__(self, hdr):
         self.hdr = hdr
         self.recs = []
@@ -390,7 +358,7 @@ def build(filepath):
     # Second, get the corresponding index file
     root, ext = os.path.splitext(filepath)
     filepath = f'{root}.shx'
-    idx = shx.build_header(filepath)
+    idx = build_header(filepath)
 
     # Check the number of records
     nbr_recs = int((idx.hdr.file_length - 100)/8)

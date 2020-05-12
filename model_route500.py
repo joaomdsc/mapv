@@ -3,7 +3,7 @@
 import os
 from storage import mapname_files
 from model import Model
-from shp import build
+from shp.shp import build
 
 class Route500(Model):
 

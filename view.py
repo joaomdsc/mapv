@@ -411,7 +411,7 @@ class DlgView(wx.Frame):
         dc.SetBrush(wx.Brush('black'))
         
         for rec in shp.recs:
-            self.draw_shp_line(shp, rec)
+            self.draw_shp_line(dc, shp, rec)
 
     def draw_usgs(self, dc, model):
         x_win, y_win = self.t

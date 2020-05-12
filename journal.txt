@@ -404,11 +404,13 @@ Missing:
 - layout with BoxSizers - DONE
   - avoid overlapping - DONE
   - placing the ctrl panel on the right - DONE
-- resize events
-  - correct repainting
-  - double-buffering
+- resize events - DONE
+  - correct repainting - DONE
+  - double-buffering - DONE
 - overlays
 - floatingcanvas
+- drawing the map with 2d paths API
+- mapping mouse clicks to elements (node/line/area)
 
 --------------------------------------------------------------------------------
 
@@ -422,3 +424,15 @@ Fix panel layout issues, now drawing on a wx.Window, with no overlapping. Also
 fix some of the repaint issues using a new flag 'need_refresh'.
 Boundaries layer now displays transparent polygon.
 Example using the new 2D api with paths is in wx/shapes_gc.py.
+
+--------------------------------------------------------------------------------
+
+* 2020/05/11
+
+Implemented double-buffering in bufwin.py:BufferedWindow.
+
+To do :
+- redraw on idle, currently it redraws while we're resizing
+
+- introduce a controller so I can move state needed by render() out of the
+  frame object
