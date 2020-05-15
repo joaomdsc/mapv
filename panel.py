@@ -3,6 +3,52 @@
 import wx
 
 #-------------------------------------------------------------------------------
+# CheckPanel
+#-------------------------------------------------------------------------------
+
+class CheckPanel(wx.Panel):
+    """Checkboxes panel.
+
+    Each checkbox represents a layer that I want to toggle on/off.
+    """
+    
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+
+        layer_names = [
+            "Hydrography",
+            "Hypsography",
+            "Transportation",
+            "Boundaries",
+            "Public Lands",
+        ]
+
+        # Lay out controls vertically
+        vbox = wx.BoxSizer(wx.VERTICAL)
+
+        # Create and bind checkboxes
+        cb0 = wx.CheckBox(self, label=layer_names[0])
+        self.Bind(wx.EVT_CHECKBOX, self.on_check, cb0)
+        cb1 = wx.CheckBox(self, label=layer_names[1])
+        self.Bind(wx.EVT_CHECKBOX, self.on_check, cb1)
+        cb2 = wx.CheckBox(self, label=layer_names[2])
+        self.Bind(wx.EVT_CHECKBOX, self.on_check, cb2)
+        cb3 = wx.CheckBox(self, label=layer_names[3])
+        self.Bind(wx.EVT_CHECKBOX, self.on_check, cb3)
+        cb4 = wx.CheckBox(self, label=layer_names[4])
+        self.Bind(wx.EVT_CHECKBOX, self.on_check, cb4)
+        
+        vbox.AddMany([(cb0, 0), (cb1, 0), (cb2, 0), (cb3, 0), (cb4, 0)])
+
+        # Finished doing layout
+        self.SetSizer(vbox)
+
+    def on_check(self, e):
+        cb = e.GetEventObject()
+        # FIXME find a better way to access the code
+        self.GetParent().GetParent().on_check_layer(cb.GetLabel(), cb.GetValue())
+        
+#-------------------------------------------------------------------------------
 # MainPanel
 #-------------------------------------------------------------------------------
 
@@ -14,7 +60,7 @@ class MainPanel(wx.Panel):
     """
     
     def __init__(self, *args, **kw):
-        super(MainPanel, self).__init__(*args, **kw)
+        super().__init__(*args, **kw)
 
         # Lay out controls vertically
         vbox = wx.BoxSizer(wx.VERTICAL)
@@ -54,12 +100,17 @@ class MainPanel(wx.Panel):
         vbox.Add(btn, flag=wx.LEFT|wx.TOP|wx.BOTTOM, border=10)
         self.Bind(wx.EVT_BUTTON, self.on_button_area, btn)
 
+        # Checkboxes panel
+        pnl = CheckPanel(self)
+        vbox.Add(pnl, flag=wx.LEFT|wx.TOP|wx.BOTTOM, border=10)
+        
         # Finished doing layout
         self.SetSizer(vbox)
 
     def on_button_line(self, _):
         s = self.tcl.GetValue()
         line_nbr = -1 if s == '' else int(s)
+        # FIXME find a better way to access the code
         self.GetParent().on_draw_line(line_nbr)
 
     def on_button_area(self, _):

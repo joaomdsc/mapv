@@ -1,9 +1,10 @@
 # mapv/model_usgs.py - USGS coverage of continental US with 100k DLG-3
 
 import os
-import storage as st
-from model import Model
+
 from dlg import load_data
+from model import Model
+import storage as st
 
 class UsgsModel(Model):
     
@@ -12,7 +13,7 @@ class UsgsModel(Model):
         self.names = {}
 
         # Get data = file summaries
-        for p in st.local_mapnames():
+        for p in st.local_mapnames(ca_only=True):
             # Example mapname is boston-e_CA, with four sections
             mapname = os.path.basename(p)
             for mp in st.mapname_files(mapname, 'hydrography'):

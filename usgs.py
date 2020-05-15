@@ -1,6 +1,8 @@
 # usgs.py - list of geocoded USGS map names
 
 import json
+
+from model import Model
       
 #-------------------------------------------------------------------------------
 # I want stdout to be unbuffered, always
@@ -22,7 +24,7 @@ sys.stdout = Unbuffered(sys.stdout)
 # Usgs
 #-------------------------------------------------------------------------------
 
-class Usgs:
+class Usgs(Model):
     # Conversion formulas
     def lat2idx(self, lat):
         return int(2*(lat - self.lat_min))
@@ -36,6 +38,7 @@ class Usgs:
     # usgs_geocoded_names.json      - only conterminous U.S.
     # usgs_geocoded_names_all.json  - all the named places
     def __init__(self):
+        self.kind = 'UsgsNames'
 
         # self.obj is a dictionary with key = state, and value a dictionary of
         # names with an associate tuple (long., lat.)
@@ -100,7 +103,7 @@ class Usgs:
         return [(self.idx2lat(i), self.coords[i][self.lng2idx(lng)])
             for i in reversed(range(2*self.lat_height))]
 
-    def bbox(self):
+    def bounding_box(self):
         min_lat = min_long = 99_999_999.00
         max_lat = max_long = -99_999_999.00
 
@@ -122,7 +125,7 @@ class Usgs:
         return min_lat, max_lat, min_long, max_long
 
     def bbox_int(self):
-        min_lat, max_lat, min_long, max_long = self.bbox()
+        min_lat, max_lat, min_long, max_long = self.bounding_box()
         return (int(round(min_lat)), int(round(max_lat)) + 1,
                     int(round(min_long)) - 1, int(round(max_long)))
         

@@ -365,7 +365,8 @@ def build(filepath):
     # FIXME derive an IndexFileHeader class from MainFileHeader, and add the
     # nbr_recs property
     if len(shp.recs) == nbr_recs:
-        print(f'File has {nbr_recs} records.')
+        # print(f'File has {nbr_recs} records.')
+        pass
     else:
         print('Inconsistent number of records:'
               f' {len(shp.recs)} in .shp, {nbr_recs} in .shx')

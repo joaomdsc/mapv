@@ -2,7 +2,7 @@
 
 import os
 import wx
-from view import DlgView
+from ui import DlgFrame
       
 #-------------------------------------------------------------------------------
 # I want stdout to be unbuffered, always
@@ -31,9 +31,9 @@ if __name__ == '__main__':
 
     app = wx.App()
     if arg is None:
-        DlgView()
+        DlgFrame()
     elif os.path.isfile(arg):
-        DlgView(filepath=arg)
+        DlgFrame(filepath=arg)
     else:
-        DlgView(mapname=arg)
+        DlgFrame(mapname=arg)
     app.MainLoop()

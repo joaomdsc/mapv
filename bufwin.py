@@ -7,37 +7,53 @@ import wx
 class BufferedWindow(wx.Window):
     """Handle all the double-buffering mechanics.
     
-    Subclass this and define a render() method that takes a dc to draw to, and
+    Subclass this and define a render() method that takes a gc to draw to, and
     performs the actual drawing. The window will automatically be double
     buffered, and the screen will be automatically updated when a Paint event
     is received.
 
     When the drawing needs to change, the user application needs to call the
-    update_drawing() method (which calls render()).
+    update_view() method, which will cause render(gc) to be called on the next
+    idle event.
+
     """
     def __init__(self, *args, **kwargs):
         super().__init__( *args, **kwargs)
 
         # Setup event handlers
-        self.Bind(wx.EVT_PAINT, self. on_paint)       
+        self.Bind(wx.EVT_PAINT, self.on_paint)       
+        self.Bind(wx.EVT_IDLE, self.on_idle)
         self.Bind(wx.EVT_SIZE, self.on_size)
 
-        # Initialize the bitmap with the right size
-        self.bitmap = wx.Bitmap(self.ClientSize)
+        # Initialize the bitmap with the right size. Note that ClientSize has
+        # type 'wx.Size', not tuple, this breaks pillow code so we fix it.
+        self.size = self.ClientSize.width, self.ClientSize.height
+        self.bitmap = wx.Bitmap(self.size)
+
+        self.redraw_needed = False
+        self.details = None
 
     def on_paint(self, _):
         """Copy the bitmap to the screen"""
         dc = wx.BufferedPaintDC(self, self.bitmap)
 
     def on_size(self, _):
-        """Re-initialize the bitmap with the new size and update drawing."""
-        self.bitmap = wx.Bitmap(self.ClientSize)
-        self.update_drawing()
+        """Mark redraw as needed because the size has changed."""
+        # Convert wx.Size to tuple
+        sz = self.ClientSize.width, self.ClientSize.height
+        if sz != self.size:
+            self.size = sz
+            self.update_view()
 
-    def update_drawing(self):
-        """Called by the client when the drawing needs to be rendered anew."""
-        dc = wx.MemoryDC()
-        dc.SelectObject(self.bitmap)
-        self.render(dc)
-        del dc
-        self.Refresh()
+    def on_idle(self, _):
+        """Rebuild the bitmap, update drawing, if needed."""
+        if self.redraw_needed:
+            # produce_bitmap is implemented in the derived classes
+            self.bitmap = self.produce_bitmap(self.details)
+            self.redraw_needed = False
+            self.Refresh()
+
+    def update_view(self, details=None):
+        """Outside world's interface to request a redraw."""
+        self.redraw_needed = True
+        self.details = details
