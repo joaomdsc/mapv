@@ -28,10 +28,9 @@ sys.stdout = Unbuffered(sys.stdout)
 #-------------------------------------------------------------------------------
   
 class DrawingLayer:
-    def __init__(self, drawing_code, visible=False):
+    def __init__(self, name):
         self.name = name
-        self.drawing_code = drawing_code
-        self.visible = visible
+        self.visible = False
         self.image = None
 
 #-------------------------------------------------------------------------------
@@ -46,49 +45,95 @@ class DrawingArea(BufferedWindow):
         self.model = None  # The view needs the model to be able to draw it
         self.t = None  # Transformation is (x_win, y_win)
 
-        self.layers = []
+        self.layers = [
+            DrawingLayer('hydrography'),
+            DrawingLayer('boundaries'),
+            DrawingLayer('hypsography'),
+            DrawingLayer('public_lands'),
+            DrawingLayer('transportation'),
+        ]
 
-    def check_layer(self, i, state):
-        self.layers[i-1].visible = state
+    def check_layer(self, name, state):
+        """User has checked/unchecked the 'name' box."""
+        for i, layer in enumerate(self.layers):
+            if layer.name == name:
+                layer.visible = state
+                return
 
-    def render(self, dc):
-        dc.SetBackground(wx.Brush("White"))
-        dc.Clear()
+    def render_bitmap(self, layering=False):
+        """Recreate the bitmap to be displayed.
 
-        # If there are no models yet, nothing to paint
-        if self.model is None:
-            return
-
-        # Define transformation form model to drawing window 
-        self.t = self.get_transform(self.model.bounding_box())
-
-        if self.model.kind == 'Usgs':
-            # Models should expose iterators/generators on polygons, lines,
-            # nodes, so that any model can be drawn.
-            self.draw_usgs(dc, self.model)
-            return
-
-        elif self.model.kind == 'Route500':
-            self.draw_shp_lines(d, self.model.dlgs[0])
-            return im
-
-        # Draw all DLGs
-        for dlg in self.model.dlgs:
-            self.dlg_draw(dc, dlg)
-
-        # Special requests act on dlgs[0]
-        if self.model.line is not None:
-            self.draw_line(dc, self.model.dlgs[0], self.model.line, pen=wx.Pen('red'))
-        if self.model.area is not None:
-            self.draw_area(dc, self.model.dlgs[0], self.model.area, pen=wx.Pen('black'),
-                           brush=wx.Brush('red'))
-                           # brush=nbr_brush(area.id))
-
-    def produce_bitmap(self, details):
-        im = self.render()
+        When render_bitmap is called, the contents of all the layer bitmaps
+        normally need to be redrawn, because either the model data has changed,
+        or the window size has changed; one exception to this rule is when the
+        visibility of some layer has been toggled, which requires only the
+        compositing to be redone. We check for for this exception so we can
+        avoid the redrawing overhead.
+        """
         w, h = self.size
-        bmp = wx.Bitmap.FromBufferRGBA(w, h, im.tobytes())
-        return bmp
+        if self.model is None:
+            im = self.render_layer_zero()
+            return wx.Bitmap.FromBufferRGBA(w, h, im.tobytes())
+        elif self.model.kind != 'Dlg3':
+            im = self.render()
+            return wx.Bitmap.FromBufferRGBA(w, h, im.tobytes())
+        
+        im = self.render_layer_zero()
+        for layer in self.layers:
+            if layer.visible:
+                if layer.image is None:
+                    # The user checked some layername's box for the first time,
+                    # we need to get that layer's data and draw it.
+                    self.model.open_category(layer.name)
+                    layer.image = self.render_dlg_layer(layer.name)
+
+                elif not layering:
+                    # We're not just toggling layer visibility, the model or
+                    # window size have actually changed, so the bitmap needs ot
+                    # be redrawn.
+
+                    # We could distinguish redrawing on the same size (keep im
+                    # and d objects) and changing sizes (im and d need to be
+                    # recreated), not sure if it's worth it.
+                    layer.image = self.render_dlg_layer(layer.name)
+                im = Image.alpha_composite(im, layer.image)
+                print(f'Composited {layer.name}')
+        
+        return wx.Bitmap.FromBufferRGBA(w, h, im.tobytes())
+
+    def render_layer_zero(self):
+        im = Image.new('RGBA', self.size)
+        d = ImageDraw.Draw(im, 'RGBA')
+        # Opaque white background
+        d.rectangle([0, 0, self.size[0], self.size[1]], fill='white')
+        return im
+
+    def render_dlg_layer(self, category):
+        im = Image.new('RGBA', self.size)
+        d = ImageDraw.Draw(im, 'RGBA')
+        # Opaque white background
+        # d.rectangle([0, 0, self.size[0], self.size[1]], fill='white')
+
+        # Define transformation form model to drawing window
+        # FIXME this doesn't need ot be done all the time
+        bbox = self.model.bounding_box()
+        # print(f'bbox={bbox}')
+        self.t = self.get_transform(bbox)
+
+        # Draw a single layer/category
+        for dlg in self.model.get_files_by_category(category):
+            self.dlg_draw(d, dlg)
+
+        # Special requests act on the first file
+        if self.model.line is not None:
+            self.draw_line(d, self.model.get_first_file(), self.model.line,
+                           pen='red')
+        if self.model.area is not None:
+            self.draw_area(d, self.model.get_first_file(), self.model.area,
+                           pen='black',
+                           brush='red')
+                           # brush=nbr_brush(area.id))
+        return im
 
     def render(self):
         im = Image.new('RGBA', self.size)
@@ -96,16 +141,13 @@ class DrawingArea(BufferedWindow):
         # Opaque white background
         d.rectangle([0, 0, self.size[0], self.size[1]], fill='white')
 
-        # If there are no models yet, nothing to paint
-        if self.model is None:
-            return im
-
         # Define transformation form model to drawing window 
         self.t = self.get_transform(self.model.bounding_box())
 
+        # Models should expose iterators/generators on polygons, lines, nodes,
+        # so that any model can be drawn with the same code.
+
         if self.model.kind == 'Usgs':
-            # Models should expose iterators/generators on polygons, lines,
-            # nodes, so that any model can be drawn.
             self.draw_usgs(d, self.model)
             return im
 
@@ -113,21 +155,9 @@ class DrawingArea(BufferedWindow):
             self.draw_usgs_names(d, self.model)
             return im
 
-        elif self.model.kind == 'Route500':
-            self.draw_shp_lines(d, self.model.dlgs[0])
+        elif self.model.kind == 'Shapefile':
+            self.draw_shp_lines(d, self.model.shps[0])
             return im
-
-        # Draw all DLGs
-        for dlg in self.model.dlgs:
-            self.dlg_draw(d, dlg)
-
-        # Special requests act on dlgs[0]
-        if self.model.line is not None:
-            self.draw_line(d, self.model.dlgs[0], self.model.line, pen='red')
-        if self.model.area is not None:
-            self.draw_area(d, self.model.dlgs[0], self.model.area, pen='black',
-                           brush='red')
-                           # brush=nbr_brush(area.id))
 
         # Return the prepared image
         return im
@@ -214,6 +244,8 @@ class DrawingArea(BufferedWindow):
         if dlg.categ.name == 'BOUNDARIES':
             self.draw_area_boundaries(d, dlg, area, pen, brush)
             return
+        if dlg.categ.name != 'HYDROGRAPHY':
+            return
         x_win, y_win = self.t
 
         # Draw the area's polygon with its own style 
@@ -254,6 +286,8 @@ class DrawingArea(BufferedWindow):
                         # Priority: function argument, then attributes, then default
                         outline_color = (attr_pen if attr_pen is not None else 'black')
 
+                        print(f'attr_brush={attr_brush}')
+
                         points = [(x_win(long_), y_win(lat))
                                       for long_, lat in area.get_points(dlg)]
                         d.polygon(points, fill=attr_brush, outline=outline_color)
@@ -263,6 +297,12 @@ class DrawingArea(BufferedWindow):
                             self.draw_area(d, dlg, a)
 
     def draw_line(self, d, dlg, line, pen=None, brush=None):
+        # print(f'dlg.categ.name={dlg.categ.name}')
+        if dlg.categ.name == 'RAILROADS':
+            self.draw_line_roads(d, dlg, line, pen, brush)
+            return
+        elif dlg.categ.name == 'ROADS AND TRAILS':
+            return
         x_win, y_win = self.t
 
         attr_pen = attr_brush = None
@@ -279,6 +319,29 @@ class DrawingArea(BufferedWindow):
             # Draw line segment from prev to current
             d.line([(x_win(long_), y_win(lat)) for long_, lat in line.coords],
                    fill=outline_color)
+
+    def draw_line_roads(self, d, dlg, line, pen=None, brush=None):
+        x_win, y_win = self.t
+
+        attr_pen = attr_brush = None
+        if line.attrs is not None and len(line.attrs) > 0:
+            maj, min = line.attrs[0]
+            categ = dlg.categ.name.lower()
+            # print(f'categ="{categ}"')
+            categ = categ.replace(' ', '_')
+            attr_pen, attr_brush = get_style(categ, 'lines', maj, min)
+
+            if attr_pen is None:
+                return
+            # Priority: function argument, then attributes, then default
+            # print(f'attr_pen={attr_pen}')
+            outline_color = attr_pen
+            outline_color = 'green'
+
+            if len(line.coords) > 1:
+                # Draw line segment from prev to current
+                d.line([(x_win(long_), y_win(lat)) for long_, lat in line.coords],
+                       fill=outline_color, width=2)
 
     #---------------------------------------------------------------------------
     # Shapefiles

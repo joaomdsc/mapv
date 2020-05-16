@@ -1,17 +1,19 @@
 # mapv/ui.py - map viewer user interface
 
 import os
+
 import wx
-from panel import MainPanel
-from draw import DrawingArea
-from summary import SummaryDialog
-from storage import mapname_files, get_dir, set_dir
-from usgs import Usgs
-from model import Model
-from model_usgs import UsgsModel
-from model_dlg3 import Dlg3Model
-from model_route500 import Route500
+
 from bitmaps import nbr_brush
+from draw import DrawingArea
+from model import Model
+from model_dlg3 import Dlg3Model
+from model_shp import Shapefile
+from model_usgs import UsgsModel
+from panel import MainPanel
+from storage import mapname_filepaths, get_dir, set_dir
+from summary import SummaryDialog
+from usgs import Usgs
 
 #-------------------------------------------------------------------------------
 # I want stdout to be unbuffered, always
@@ -89,8 +91,8 @@ class DlgFrame(wx.Frame):
             set_dir(dir)
             file = d.GetFilename()
             # FIXME
-            if self.win.model is None or self.win.model.kind != 'Route500':
-                self.win.model = Route500()
+            if self.win.model is None or self.win.model.kind != 'Shapefile':
+                self.win.model = Shapefile()
             self.win.model.open(os.path.join(dir, file))
             self.win.update_view()
         d.Destroy()
@@ -107,12 +109,14 @@ class DlgFrame(wx.Frame):
                 self.win.model = Dlg3Model()
             filepath = os.path.join(dir, file)
             try:
-                self.win.model.open(filepath)
-                self.win.update_view()
+                category = self.win.model.open(filepath)
             # FIXME define an application-specific exception
             except ValueError:
                 s = f"Can't open '{filepath}'"
                 self.GetStatusBar().PushStatusText(s)
+            # A file has been opened in category
+            print('File has been opened')
+            self.win.update_view()
         d.Destroy()
 
     def on_open_place(self, e):
@@ -127,6 +131,7 @@ class DlgFrame(wx.Frame):
         self.win.update_view()
             
     def on_clear(self, _):
+        # FIXME clear line and area text boxes in the controls panel
         self.win.model = None
         self.showing_usgs = None
         self.win.update_view()
@@ -184,10 +189,11 @@ class DlgFrame(wx.Frame):
  
     def on_check_layer(self, name, state):
         self.win.check_layer(name, state)
+        print('Layer box has been checked')
         # Redoing layer compositing is internal to our drawing mechanisms. From
         # the point of view of the BufferedWindow class, the bitmap must be
         # changed, so we call update_view() as usual.
-        self.win.update_view(details='layering_only')
+        self.win.update_view(layering=True)
 
     def create_menus(self):
         fm = wx.Menu()

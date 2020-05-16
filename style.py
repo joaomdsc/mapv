@@ -6,6 +6,9 @@ light_blue = (214, 237, 251)
 darker_blue = (0, 128, 255)
 dark_green = (47, 79, 47)
 dark_orange = (204, 50, 50)
+pink = (255, 192, 203, 20)
+yellow = (255, 255, 0, 20)
+orange = (255, 165, 0, 20)
 
 map_style = dict(
     boundaries=dict(
@@ -16,52 +19,55 @@ map_style = dict(
             '090': {
                 '0100': dict(
                     description='Civil township, district, precinct, or barrio',
-                    brush_color=(15, 128, 217, 20),
+                    # brush_color=(15, 128, 217, 20),
+                    brush_color=orange,
                 ),
                 '0101': dict(
                     description='Incorporated city, village, town, borough, or hamlet',
-                    brush_color=(35, 178, 187, 20),
+                    # brush_color=(35, 178, 187, 20),
+                    brush_color=yellow,
                 ),
                 '0103': dict(
                     description='National park, monument, lakeshore, seashore, parkway, battlefield, or recreation area',
-                    brush_color=(55, 78, 157, 20),
+                    # brush_color=(55, 78, 157, 20),
+                    brush_color=pink,
                 ),
-                '0104': dict(
-                    description='National forest or grassland',
-                    brush_color=(75, 178, 127, 20),
-                ),
-                '0105': dict(
-                    description='National wildlife refuge, game preserve, or fish hatchery',
-                    brush_color=(95, 78, 97, 20),
-                ),
-                '0106': dict(
-                    description='National scenic waterway, riverway, wild and scenic river, or wilderness area',
-                    brush_color=(115, 178, 67, 20),
-                ),
-                '0107': dict(
-                    description='Indian reservation',
-                    brush_color=(135, 78, 37, 20),
-                ),
-                '0108': dict(
-                    description='Military reservation',
-                    brush_color=(155, 178, 7, 20),
-                ),
-                '0111': dict(
-                    description='Miscellaneous Federal reservation',
-                    brush_color=(175, 78, 247, 20),
-                ),
-                '0129': dict(
-                    description='Miscellaneous State reservation',
-                    brush_color=(195, 178, 200, 20),
-                ),
-                '0130': dict(
-                    description='State park, recreation area arboretum, or lake',
-                    brush_color=(215, 78, 190, 20),
-                ),
-                '0150': dict(
-                    description='Large park (city, county, or private)',
-                    brush_color=(140, 100, 170, 20),
-                ),
+                # '0104': dict(
+                #     description='National forest or grassland',
+                #     brush_color=(75, 178, 127, 20),
+                # ),
+                # '0105': dict(
+                #     description='National wildlife refuge, game preserve, or fish hatchery',
+                #     brush_color=(95, 78, 97, 20),
+                # ),
+                # '0106': dict(
+                #     description='National scenic waterway, riverway, wild and scenic river, or wilderness area',
+                #     brush_color=(115, 178, 67, 20),
+                # ),
+                # '0107': dict(
+                #     description='Indian reservation',
+                #     brush_color=(135, 78, 37, 20),
+                # ),
+                # '0108': dict(
+                #     description='Military reservation',
+                #     brush_color=(155, 178, 7, 20),
+                # ),
+                # '0111': dict(
+                #     description='Miscellaneous Federal reservation',
+                #     brush_color=(175, 78, 247, 20),
+                # ),
+                # '0129': dict(
+                #     description='Miscellaneous State reservation',
+                #     brush_color=(195, 178, 200, 20),
+                # ),
+                # '0130': dict(
+                #     description='State park, recreation area arboretum, or lake',
+                #     brush_color=(215, 78, 190, 20),
+                # ),
+                # '0150': dict(
+                #     description='Large park (city, county, or private)',
+                #     brush_color=(140, 100, 170, 20),
+                # ),
             },
             '091': {
                 '0025': dict(
@@ -142,7 +148,14 @@ map_style = dict(
     
     ),
     railroads=dict(
-        
+        lines={
+            '180': {
+                '0201': dict(
+                    description='Railroad',
+                    pen_color=(0, 255, 0),
+                ),
+            },
+        },        
     ),
     transmission=dict(
         
@@ -152,6 +165,16 @@ map_style = dict(
     ),
     public_land=dict(
         
+    ),
+    roads_and_trails=dict(
+        lines={
+            '170': {
+                '0202': dict(
+                    description='Primary route, class 1, symbol undivided',
+                    pen_color=dark_green,
+                ),
+            },
+        },
     ),
 )
 

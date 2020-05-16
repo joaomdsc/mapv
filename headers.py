@@ -5,15 +5,16 @@ that make up both halves of the quadrangle.  """
 
 import os
 import sys
+
 import dlg
+from storage import dlg_base_dir
 
 #-------------------------------------------------------------------------------
 # show_headers - 
 #-------------------------------------------------------------------------------
 
 def show_headers(name, state):
-    path = r'C:\x\data\dds.cr.usgs.gov\pub\data\DLG\100K'
-    path = os.path.join(path, name[0].upper())
+    path = os.path.join(dlg_base_dir, name[0].upper())
 
     for half in 'ew':
         mapname = f'{name}-{half}_{state}'
@@ -21,7 +22,7 @@ def show_headers(name, state):
         if not os.path.isdir(map_path):
             print(f"Can't find '{mapname}'")
         else:
-            layer_path = os.path.join(map_path, 'hydrography')
+            layer_path = os.path.join(map_path, 'transportation')
             for f in os.listdir(layer_path):
                 if f.endswith('.opt.gz'):
                     filepath = os.path.join(layer_path, f)

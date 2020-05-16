@@ -16,7 +16,7 @@ class UsgsModel(Model):
         for p in st.local_mapnames(ca_only=True):
             # Example mapname is boston-e_CA, with four sections
             mapname = os.path.basename(p)
-            for mp in st.mapname_files(mapname, 'hydrography'):
+            for mp in st.mapname_filepaths(mapname, 'hydrography'):
                 # Four sections, four dlg files 
                 dlg = load_data(mp)
                 r = dlg.summary()

@@ -55,10 +55,10 @@ def mapnames():
             yield state, name
  
 #-------------------------------------------------------------------------------
-# mapname_files
+# mapname_filepaths
 #-------------------------------------------------------------------------------
 
-def mapname_files(mapname, category=None):
+def mapname_filepaths(mapname, category=None):
     """DLG-3 filenames in the given mapname."""
     path = os.path.join(dlg_base_dir, mapname[0].upper())
     path = os.path.join(path, mapname)

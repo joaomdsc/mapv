@@ -450,13 +450,3 @@ Compositing
 is_point_contained_in_?
 
 Retry wxPython gc/paths with the new versions - Done, still no alpha-compositing
-
---------------------------------------------------------------------------------
-
-* 2020/05/15
-
-** Layering
-
-It's implemented in wx/windows.py.
-
-No need to open USGS Quads to access local mapnames.

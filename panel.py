@@ -46,7 +46,8 @@ class CheckPanel(wx.Panel):
     def on_check(self, e):
         cb = e.GetEventObject()
         # FIXME find a better way to access the code
-        self.GetParent().GetParent().on_check_layer(cb.GetLabel(), cb.GetValue())
+        self.GetParent().GetParent().on_check_layer(cb.GetLabel().lower(),
+                                                    cb.GetValue())
         
 #-------------------------------------------------------------------------------
 # MainPanel

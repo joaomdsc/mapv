@@ -31,7 +31,7 @@ class BufferedWindow(wx.Window):
         self.bitmap = wx.Bitmap(self.size)
 
         self.redraw_needed = False
-        self.details = None
+        self.layering = False
 
     def on_paint(self, _):
         """Copy the bitmap to the screen"""
@@ -48,12 +48,12 @@ class BufferedWindow(wx.Window):
     def on_idle(self, _):
         """Rebuild the bitmap, update drawing, if needed."""
         if self.redraw_needed:
-            # produce_bitmap is implemented in the derived classes
-            self.bitmap = self.produce_bitmap(self.details)
+            # render_bitmap is implemented in the derived classes
+            self.bitmap = self.render_bitmap(self.layering)
             self.redraw_needed = False
             self.Refresh()
 
-    def update_view(self, details=None):
+    def update_view(self, layering=False):
         """Outside world's interface to request a redraw."""
         self.redraw_needed = True
-        self.details = details
+        self.layering = layering
