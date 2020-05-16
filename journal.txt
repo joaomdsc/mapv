@@ -448,5 +448,21 @@ Drawing polygons with holes
 Transparency
 Compositing
 is_point_contained_in_?
+Custom pattern for the brush
 
 Retry wxPython gc/paths with the new versions - Done, still no alpha-compositing
+
+--------------------------------------------------------------------------------
+
+* 2020/05/16
+
+Retrieved state and county FIPS codes from https://www.nrcs.usda.gov/:
+
+    Natural Resources Conservation Service
+    United States Department of Agriculture
+
+There are 55 state FIPS codes, including (beyond the 50 actual states) American
+Samoa, Guam, Northern Mariana Islands, Puerto Rico, and Virgin Islands.
+
+There are 3232 county FIPS codes.
+
