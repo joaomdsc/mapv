@@ -15,30 +15,26 @@ class CheckPanel(wx.Panel):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
 
-        layer_names = [
-            "Hydrography",
-            "Hypsography",
-            "Transportation",
-            "Boundaries",
-            "Public Lands",
-        ]
+        self.layers = {
+            'Hydrography': 'HY',
+            'Hypsography': 'HP',
+            'Railroads': 'RR',
+            'Pipe & trans lines': 'MT',
+            'Roads and trails': 'RD',
+            'Boundaries': 'BO',
+            'Public Lands': 'PL',
+        }
 
         # Lay out controls vertically
         vbox = wx.BoxSizer(wx.VERTICAL)
 
         # Create and bind checkboxes
-        cb0 = wx.CheckBox(self, label=layer_names[0])
-        self.Bind(wx.EVT_CHECKBOX, self.on_check, cb0)
-        cb1 = wx.CheckBox(self, label=layer_names[1])
-        self.Bind(wx.EVT_CHECKBOX, self.on_check, cb1)
-        cb2 = wx.CheckBox(self, label=layer_names[2])
-        self.Bind(wx.EVT_CHECKBOX, self.on_check, cb2)
-        cb3 = wx.CheckBox(self, label=layer_names[3])
-        self.Bind(wx.EVT_CHECKBOX, self.on_check, cb3)
-        cb4 = wx.CheckBox(self, label=layer_names[4])
-        self.Bind(wx.EVT_CHECKBOX, self.on_check, cb4)
-        
-        vbox.AddMany([(cb0, 0), (cb1, 0), (cb2, 0), (cb3, 0), (cb4, 0)])
+        self.cbs = []
+        for layer in self.layers.keys():
+            cb = wx.CheckBox(self, label=layer)
+            self.Bind(wx.EVT_CHECKBOX, self.on_check, cb)
+            vbox.Add(cb, 0)
+            self.cbs.append(cb)
 
         # Finished doing layout
         self.SetSizer(vbox)
@@ -46,9 +42,22 @@ class CheckPanel(wx.Panel):
     def on_check(self, e):
         cb = e.GetEventObject()
         # FIXME find a better way to access the code
-        self.GetParent().GetParent().on_check_layer(cb.GetLabel().lower(),
-                                                    cb.GetValue())
-        
+        # NOTE the call to lower(), in the model categories are lowercase
+        self.GetParent().GetParent().on_check_layer(
+            self.layers[cb.GetLabel()], cb.GetValue())
+
+    def set_check(self, code, state):
+        for cb in self.cbs:
+            if self.layers[cb.GetLabel()] == code:
+                cb.SetValue(state)
+                self.GetParent().GetParent().on_check_layer(code, state)
+
+    def clear(self):
+        for cb in self.cbs:
+            cb.SetValue(False)
+            # No need to propagate through the parents, teh rest of teh window
+            # is clearing itself as well.
+
 #-------------------------------------------------------------------------------
 # MainPanel
 #-------------------------------------------------------------------------------
@@ -102,8 +111,8 @@ class MainPanel(wx.Panel):
         self.Bind(wx.EVT_BUTTON, self.on_button_area, btn)
 
         # Checkboxes panel
-        pnl = CheckPanel(self)
-        vbox.Add(pnl, flag=wx.LEFT|wx.TOP|wx.BOTTOM, border=10)
+        self.pnl = CheckPanel(self)
+        vbox.Add(self.pnl, flag=wx.LEFT|wx.TOP|wx.BOTTOM, border=10)
         
         # Finished doing layout
         self.SetSizer(vbox)

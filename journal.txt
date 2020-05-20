@@ -466,3 +466,18 @@ Samoa, Guam, Northern Mariana Islands, Puerto Rico, and Virgin Islands.
 
 There are 3232 county FIPS codes.
 
+--------------------------------------------------------------------------------
+
+* 2020/05/20
+
+** Commit
+
+Replaced long category names with 2-letter codes, almost everywhere. Also
+replaced 'transportation' with 'RR', 'MT', 'RD'.
+
+Checking a category checkbox in the UI now opens all the relevant files for the
+currently open mapnames. Conversely, opening a file checks the corresponding
+box.
+
+Layer compositing is operational.
+

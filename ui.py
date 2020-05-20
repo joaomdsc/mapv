@@ -105,17 +105,26 @@ class DlgFrame(wx.Frame):
             self.category = os.path.split(dir)[1]
             set_dir(dir)
             file = d.GetFilename()
+
+            # The 'ui' module shouldn't deal in details of the model such as
+            # mapname, category, etc. The role of the 'on_open_file' method is
+            # just to get a filepath from the user and pass it onto the
+            # controller.
             if self.win.model is None or self.win.model.kind != 'Dlg3':
                 self.win.model = Dlg3Model()
             filepath = os.path.join(dir, file)
             try:
-                category = self.win.model.open(filepath)
+                mapname, category, filename = self.win.model.open(filepath)
             # FIXME define an application-specific exception
             except ValueError:
                 s = f"Can't open '{filepath}'"
                 self.GetStatusBar().PushStatusText(s)
-            # A file has been opened in category
-            print('File has been opened')
+                d.Destroy()
+            # A file has been opened
+            s = f'Opened {mapname}, {category}, {filename}'
+            self.GetStatusBar().PushStatusText(s)
+            self.panel.pnl.set_check(category, True)
+            # End of scope of previous remark on the role of the 'ui' module.
             self.win.update_view()
         d.Destroy()
 
@@ -132,7 +141,8 @@ class DlgFrame(wx.Frame):
             
     def on_clear(self, _):
         # FIXME clear line and area text boxes in the controls panel
-        self.win.model = None
+        self.win.clear()
+        self.panel.pnl.clear()
         self.showing_usgs = None
         self.win.update_view()
 
@@ -187,9 +197,8 @@ class DlgFrame(wx.Frame):
         self.win.model.line = self.win.model.dlgs[0].lines[line_nbr-1] if line_nbr != -1 else None
         self.win.update_view()
  
-    def on_check_layer(self, name, state):
-        self.win.check_layer(name, state)
-        print('Layer box has been checked')
+    def on_check_layer(self, code, state):
+        self.win.check_layer(code, state)
         # Redoing layer compositing is internal to our drawing mechanisms. From
         # the point of view of the BufferedWindow class, the bitmap must be
         # changed, so we call update_view() as usual.

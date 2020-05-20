@@ -28,8 +28,8 @@ sys.stdout = Unbuffered(sys.stdout)
 #-------------------------------------------------------------------------------
   
 class DrawingLayer:
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, code):
+        self.code = code
         self.visible = False
         self.image = None
 
@@ -46,17 +46,25 @@ class DrawingArea(BufferedWindow):
         self.t = None  # Transformation is (x_win, y_win)
 
         self.layers = [
-            DrawingLayer('hydrography'),
-            DrawingLayer('boundaries'),
-            DrawingLayer('hypsography'),
-            DrawingLayer('public_lands'),
-            DrawingLayer('transportation'),
+            DrawingLayer('HY'),
+            DrawingLayer('BO'),
+            DrawingLayer('HP'),
+            DrawingLayer('PL'),
+            DrawingLayer('RR'),
+            DrawingLayer('MT'),
+            DrawingLayer('RD'),
         ]
 
-    def check_layer(self, name, state):
-        """User has checked/unchecked the 'name' box."""
-        for i, layer in enumerate(self.layers):
-            if layer.name == name:
+    def clear(self):
+        self.model = None
+        for layer in self.layers:
+            layer.visible = False
+            layer.image = None
+
+    def check_layer(self, code, state):
+        """User has checked/unchecked the 'code' layer box."""
+        for layer in self.layers:
+            if layer.code == code:
                 layer.visible = state
                 return
 
@@ -84,8 +92,8 @@ class DrawingArea(BufferedWindow):
                 if layer.image is None:
                     # The user checked some layername's box for the first time,
                     # we need to get that layer's data and draw it.
-                    self.model.open_category(layer.name)
-                    layer.image = self.render_dlg_layer(layer.name)
+                    self.model.open_files_category(layer.code)
+                    layer.image = self.render_dlg_layer(layer.code)
 
                 elif not layering:
                     # We're not just toggling layer visibility, the model or
@@ -95,9 +103,8 @@ class DrawingArea(BufferedWindow):
                     # We could distinguish redrawing on the same size (keep im
                     # and d objects) and changing sizes (im and d need to be
                     # recreated), not sure if it's worth it.
-                    layer.image = self.render_dlg_layer(layer.name)
+                    layer.image = self.render_dlg_layer(layer.code)
                 im = Image.alpha_composite(im, layer.image)
-                print(f'Composited {layer.name}')
         
         return wx.Bitmap.FromBufferRGBA(w, h, im.tobytes())
 
@@ -109,19 +116,18 @@ class DrawingArea(BufferedWindow):
         return im
 
     def render_dlg_layer(self, category):
+        print(f'render_dlg_layer, code={category}')
         im = Image.new('RGBA', self.size)
         d = ImageDraw.Draw(im, 'RGBA')
-        # Opaque white background
-        # d.rectangle([0, 0, self.size[0], self.size[1]], fill='white')
 
         # Define transformation form model to drawing window
-        # FIXME this doesn't need ot be done all the time
+        # FIXME this doesn't need to be done all the time
         bbox = self.model.bounding_box()
-        # print(f'bbox={bbox}')
         self.t = self.get_transform(bbox)
 
         # Draw a single layer/category
         for dlg in self.model.get_files_by_category(category):
+            print(dlg)
             self.dlg_draw(d, dlg)
 
         # Special requests act on the first file
@@ -141,7 +147,7 @@ class DrawingArea(BufferedWindow):
         # Opaque white background
         d.rectangle([0, 0, self.size[0], self.size[1]], fill='white')
 
-        # Define transformation form model to drawing window 
+        # Define transformation from model to drawing window 
         self.t = self.get_transform(self.model.bounding_box())
 
         # Models should expose iterators/generators on polygons, lines, nodes,
@@ -156,7 +162,7 @@ class DrawingArea(BufferedWindow):
             return im
 
         elif self.model.kind == 'Shapefile':
-            self.draw_shp_lines(d, self.model.shps[0])
+            self.draw_shp_lines(d, self.model.files[0])
             return im
 
         # Return the prepared image
@@ -177,9 +183,6 @@ class DrawingArea(BufferedWindow):
           - when another DLG file is added (new bbox)
           - when the window is resized (w_wx, h_wx are the window size)
           """
-        # FIXME get_transform works from a model, of which I have two. Define
-        # the model's API and re-factor this..
-        
         # Size of drawing area
         w_wx = self.size[0]
         h_wx = self.size[1]
@@ -241,10 +244,10 @@ class DrawingArea(BufferedWindow):
     def draw_area(self, d, dlg, area, pen=None, brush=None):
         """Paint the area's polygon, and all the areas inside its islands."""
         # pen and brush are now colors
-        if dlg.categ.name == 'BOUNDARIES':
+        if dlg.categ.name.lower() == 'boundaries':
             self.draw_area_boundaries(d, dlg, area, pen, brush)
             return
-        if dlg.categ.name != 'HYDROGRAPHY':
+        if dlg.categ.name.lower() != 'hydrography':
             return
         x_win, y_win = self.t
 
@@ -286,8 +289,6 @@ class DrawingArea(BufferedWindow):
                         # Priority: function argument, then attributes, then default
                         outline_color = (attr_pen if attr_pen is not None else 'black')
 
-                        print(f'attr_brush={attr_brush}')
-
                         points = [(x_win(long_), y_win(lat))
                                       for long_, lat in area.get_points(dlg)]
                         d.polygon(points, fill=attr_brush, outline=outline_color)
@@ -298,10 +299,10 @@ class DrawingArea(BufferedWindow):
 
     def draw_line(self, d, dlg, line, pen=None, brush=None):
         # print(f'dlg.categ.name={dlg.categ.name}')
-        if dlg.categ.name == 'RAILROADS':
+        if dlg.categ.name.lower() == 'railroads':
             self.draw_line_roads(d, dlg, line, pen, brush)
             return
-        elif dlg.categ.name == 'ROADS AND TRAILS':
+        elif dlg.categ.name.lower() == 'roads and trails':
             return
         x_win, y_win = self.t
 

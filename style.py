@@ -81,6 +81,12 @@ map_style = dict(
                     brush_color=(215, 78, 190),
                 ),
             },
+            '092': {
+                '0127': dict(
+                    description='Glynn county, GA',
+                    brush_color=(255, 255, 0, 128),
+                ),
+            },
         },
     ),
     hydrography=dict(

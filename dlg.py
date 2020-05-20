@@ -2,9 +2,10 @@
 
 """DLG-3 optional format parser."""
 
+import gzip
+import os
 import re
 import sys
-import gzip
     
 #-------------------------------------------------------------------------------
 # Helper functions
@@ -627,14 +628,40 @@ class DlgFile():
         self.nodes = None
         self.areas = None
         self.lines = None
+        # Metadata
+        self.filepath = None
 
-    def __str__(self):
-        return f'{self.hdr2.data_cell}, {self.hdr2.states}, {self.hdr2.section}'
+    #---------------------------------------------------------------------------
+    # Properties
+    #---------------------------------------------------------------------------
+    
+    @property
+    def filename(self):
+        return os.path.basename(self.filepath)
+
+    @property
+    def zone(self):
+        return self.hdr4.zone
+
+    @property
+    def section(self):
+        return self.hdr2.section
 
     @property
     def data_cell(self):
         return self.hdr2.data_cell
+
+    @property
+    def category(self):
+        return self.categ.name
     
+    #---------------------------------------------------------------------------
+    # Methods
+    #---------------------------------------------------------------------------
+
+    def __str__(self):
+        return f'{self.hdr2.data_cell}, {self.hdr2.states}, {self.hdr2.section}'
+
     def show_headers(self):
         s = ''
         # s += f'{self.hdr1}\n'
@@ -853,7 +880,44 @@ class DlgFile():
         for a in self.areas_with_islands():
             root.kids.append(self.build_tree(a))
         return root
-        
+
+    def has_attribute(self, major, minor):
+        """Occurrences of the given attribute pair (major, minor are ints)."""
+        r = {}
+        for x in self.nodes:
+            if x.attrs is None:
+                continue
+            for s_maj, s_min in x.attrs:
+                maj = int(s_maj)
+                min = int(s_min)
+                if maj == major and min == minor:
+                    if 'nodes' not in r:
+                        r['nodes'] = []
+                    r['nodes'].append(x.id)
+
+        for x in self.areas:
+            if x.attrs is None:
+                continue
+            for s_maj, s_min in x.attrs:
+                maj = int(s_maj)
+                min = int(s_min)
+                if maj == major and min == minor:
+                    if 'areas' not in r:
+                        r['areas'] = []
+                    r['areas'].append(x.id)
+
+        for x in self.lines:
+            if x.attrs is None:
+                continue
+            for s_maj, s_min in x.attrs:
+                maj = int(s_maj)
+                min = int(s_min)
+                if maj == major and min == minor:
+                    if 'lines' not in r:
+                        r['lines'] = []
+                    r['lines'].append(x.id)
+        return r
+
 #-------------------------------------------------------------------------------
 # load_links - 
 #-------------------------------------------------------------------------------
@@ -965,9 +1029,10 @@ def _load_headers(f):
 # load_data - 
 #-------------------------------------------------------------------------------
 
-def _load_data(f):
+def _load_data(f, filepath):
     # Get the headers first
     dlg = _load_headers(f)
+    dlg.filepath = filepath
 
     categ = dlg.categ
 
@@ -1043,10 +1108,10 @@ def load_data(filepath):
     """Create python objects from file."""
     if filepath.endswith('.gz'):
         with gzip.open(filepath, 'rt') as f:
-            return _load_data(f)
+            return _load_data(f, filepath)
     else:
         with open(filepath, 'r') as f:
-            return _load_data(f)
+            return _load_data(f, filepath)
     
 #-------------------------------------------------------------------------------
 # show_data - 
@@ -1078,8 +1143,12 @@ if __name__ == '__main__':
     # print(f'Bbox: {dlg.bounding_box()}')
     # print()
     # print(dlg.show_headers())
+    
     print(dlg.show_all())
+
     # print(dlg.show_attributes())
 
     # show_data(filepath)
     # print(dlg.show_tgt_areas())
+
+    # print(dlg.has_attribute(91, 13))
