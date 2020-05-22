@@ -282,7 +282,7 @@ class DrawingArea(BufferedWindow):
         if area.attrs is not None and len(area.attrs) > 0:
             for a in area.attrs:
                 maj, min = a
-                if int(maj) == 90:
+                if int(maj) in [90, 92]:
                     attr_pen, attr_brush = get_style(dlg.categ.name.lower(), 'areas',
                                                      maj, min, id=area.id)
                     if attr_brush is not None:

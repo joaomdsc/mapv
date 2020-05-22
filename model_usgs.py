@@ -2,7 +2,7 @@
 
 import os
 
-from dlg import load_data
+from dlg import load_headers
 from model import Model
 import storage as st
 
@@ -13,12 +13,12 @@ class UsgsModel(Model):
         self.names = {}
 
         # Get data = file summaries
-        for p in st.local_mapnames(ca_only=True):
+        for p in st.local_mapnames(ca_only=False):
             # Example mapname is boston-e_CA, with four sections
             mapname = os.path.basename(p)
             for mp in st.mapname_filepaths(mapname, 'hydrography'):
                 # Four sections, four dlg files 
-                dlg = load_data(mp)
+                dlg = load_headers(mp)
                 r = dlg.summary()
                 # if not r['states'] == 'CA':
                 #     continue

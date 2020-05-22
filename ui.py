@@ -45,12 +45,6 @@ class DlgFrame(wx.Frame):
         self.SetTitle('Mapv')
         self.CreateStatusBar()
 
-        # Menus
-        self.places_submenu = None  # for adding/removing items
-        self.places_menuitem = None  # for enabling/disabling the submenu
-        self.SetMenuBar(self.create_menus())
-        self.Show(True)
-
         # Horizontal sizer
         hbox = wx.BoxSizer(wx.HORIZONTAL)
         
@@ -64,6 +58,12 @@ class DlgFrame(wx.Frame):
         
         hbox.SetSizeHints(self)
         self.SetSizer(hbox)
+
+        # Menus
+        self.places_submenu = None  # for adding/removing items
+        self.places_menuitem = None  # for enabling/disabling the submenu
+        self.SetMenuBar(self.create_menus())
+        self.Show(True)
 
         # Initially open file
         if filepath is not None:
@@ -146,7 +146,7 @@ class DlgFrame(wx.Frame):
         self.showing_usgs = None
         self.win.update_view()
 
-    def show_usgs(self, _):
+    def show_usgs_quads(self, _):
         self.win.model = UsgsModel()
         s = f'Loaded {len(self.win.model.names.keys())} DLG-3 files'
         self.GetStatusBar().PushStatusText(s)
@@ -209,23 +209,26 @@ class DlgFrame(wx.Frame):
         mi = fm.Append(wx.ID_ANY, '&Open file', 'Open a DLG-3 file')
         self.Bind(wx.EVT_MENU, self.on_open_file, mi)
 
-        # Sub-menu
+        # Sub-menu -------------------------------------------------------------
         m = wx.Menu()
         mi = fm.Append(wx.ID_ANY, '&Open place', m)
-        mi.Enable(False)
 
         # Persist
         self.places_submenu = m  # for adding/removing items
         self.places_menuitem = mi  # for enabling/disabling the submenu
 
+        self.win.model = UsgsModel()
+        self.add_menu_entries(self.win.model.places())
+        self.win.model = None
+        # End of places sub-menu -----------------------------------------------
+
         mi = fm.Append(wx.ID_ANY, '&Open shapefile', 'Open a shapefile')
         self.Bind(wx.EVT_MENU, self.on_open_route, mi)
-        
         mi = fm.Append(wx.ID_ANY, '&Clear', 'Clear all files')
         self.Bind(wx.EVT_MENU, self.on_clear, mi)
         mi = fm.Append(wx.ID_ANY, 'USGS Quads', 'Show a map of the USGS quads')
-        self.Bind(wx.EVT_MENU, self.show_usgs, mi)
-        mi = fm.Append(wx.ID_ANY, 'USGS Names', 'Show the named places')
+        self.Bind(wx.EVT_MENU, self.show_usgs_quads, mi)
+        mi = fm.Append(wx.ID_ANY, 'USGS Named Places', 'Show the named places')
         self.Bind(wx.EVT_MENU, self.show_usgs_names, mi)
         mi = fm.Append(wx.ID_ANY, 'Summary', 'Show a summary of a file')
         self.Bind(wx.EVT_MENU, self.show_summary, mi)

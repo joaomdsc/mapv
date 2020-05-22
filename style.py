@@ -82,9 +82,21 @@ map_style = dict(
                 ),
             },
             '092': {
+                '0039': dict(
+                    description='Camden county, GA',
+                    brush_color=orange,
+                ),
+            },
+            '092': {
                 '0127': dict(
                     description='Glynn county, GA',
-                    brush_color=(255, 255, 0, 128),
+                    brush_color=pink,
+                ),
+            },
+            '092': {
+                '0191': dict(
+                    description='McIntosh county, GA',
+                    brush_color=yellow,
                 ),
             },
         },
