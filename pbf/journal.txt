@@ -1,0 +1,73 @@
+
+* 2020/05/09
+
+https://wiki.openstreetmap.org/wiki/PBF_Format
+
+At present, the reference implementation of PBF is the Osmosis implementation,
+split into two parts, the osmosis-specific part, contained in the Osmosis
+repository at [1], and an application-generic part at [2]. This
+application-generic part is used to build the osmpbf.jar (as used in osmosis
+and other Java-based PBF readers) and also contains the master definition of
+the PBF protocol buffer definitions (*.proto files).
+
+[2] https://github.com/openstreetmap/OSM-binary/tree/master/src
+
+This directory holds the following files:
+
+    fileformat.proto
+    osmformat.proto
+
+that define OSM's pbf file format.
+
+--------------------------------------------------------------------------------
+
+* 2020/05/11
+
+** https://wiki.openstreetmap.org/wiki/O5m#Format_description
+
+Delta-coding:
+
+  As you could see, small numbers require less space than high numbers. Our data
+  format will try to avoid large numbers. To accomplish this, we use a trick
+  which has been introduced by .pbf format: the so-called delta
+  coding. Especially where numbers usually differ just slightly from each other,
+  we store only the difference between these numbers. For example, let's assume,
+  we want to store the ids of a few nodes, let's say 123000, 123050,
+  123055. These are stored as three signed integer values: +123000, +50, +5.
+  
+  The described number formats support integers only. To store decimals we use
+  fixed-point representation. Latitudes and longitudes are stored as 100
+  nanodegree values, i.e. the decimal point is moved 7 places to the right. Be
+  aware that applications which create or read .o5m files use 32 bit signed
+  integer values instead of 64 bit ones when delta-coding longitude values. For
+  this reason you will not get any delta values beyond the range of 32 bit signed
+  integers, even in cases you would expect it – for example if the delta counts
+  358 degrees (179 minus -179). The stored delta value for these 358 degrees is a
+  positive value (714.967.296 or 0x2a9d8900), because in 32 bit arithmetic
+  1.790.000.000 + 714.967.296 gives an overflow, and the result is
+  -1.790.000.000, which is exactly the value we want to have. In 64 bit
+  arithmetic, we would store a negative value (-3.580.000.000 or
+  0xffffffff2a9d8900). It is obvious that we only need the last 32 bits of this
+  value, which is exactly the value that is stored in 32 bit arithmetic.
+
+Note that OSM pbf files use 'sint64' in DenseNodes
+
+** From the Google protocol buffers python tutorial:
+
+Protocol Buffers and O-O Design Protocol buffer classes are basically dumb data
+holders (like structs in C); they don't make good first class citizens in an
+object model.
+
+If you want to add richer behaviour to a generated class, the best way to do
+this is to wrap the generated protocol buffer class in an application-specific
+class.
+
+Wrapping protocol buffers is also a good idea if you don't have control over
+the design of the .proto file (if, say, you're reusing one from another
+project). In that case, you can use the wrapper class to craft an interface
+better suited to the unique environment of your application: hiding some data
+and methods, exposing convenience functions, etc.
+
+You should never add behaviour to the generated classes by inheriting from
+them. This will break internal mechanisms and is not good object-oriented
+practice anyway.

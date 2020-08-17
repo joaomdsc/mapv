@@ -481,3 +481,8 @@ box.
 
 Layer compositing is operational.
 
+--------------------------------------------------------------------------------
+
+* 2020/08/17
+
+pbf/osm_pbf.py being modified to support import aliases.

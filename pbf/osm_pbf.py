@@ -16,9 +16,12 @@ import os
 import sys
 import zlib
 import struct
-import fileformat_pb2
-import osmformat_pb2
 from datetime import datetime
+
+import pbf.fileformat_pb2 as ff
+import pbf.osmformat_pb2 as of
+# from pbf.fileformat_pb2 import fileformat_pb2
+# from pbf.osmformat_pb2 import osmformat_pb2
   
 #-------------------------------------------------------------------------------
 # I want stdout to be unbuffered, always
@@ -235,7 +238,7 @@ class OsmPbfPrimitiveBlock:
         """Argument blob is an instance of OsmPbfBlobStruct where the type in the
         BlobHeader is OSMData.
         """
-        prim_blk = osmformat_pb2.PrimitiveBlock()
+        prim_blk = of.PrimitiveBlock()
         prim_blk.ParseFromString(blob.get_data())
 
         # Extract the string table and factory-build instance of primitive groups
@@ -298,7 +301,7 @@ class OsmPbfHeaderBlock:
         """Argument blob is an instance of OsmPbfBlobStruct where the type in the
         BlobHeader is OSMHeader.
         """
-        hdr_blk = osmformat_pb2.HeaderBlock()
+        hdr_blk = of.HeaderBlock()
         hdr_blk.ParseFromString(blob.get_data())
 
         if hdr_blk.HasField('bbox'):
@@ -351,7 +354,7 @@ class OsmPbfBlob:
 
     @classmethod
     def build(cls, data):
-        blob = fileformat_pb2.Blob()
+        blob = ff.Blob()
         blob.ParseFromString(data)
 
         opt_raw = blob.raw if blob.HasField('raw') else None
@@ -384,7 +387,7 @@ class OsmPbfBlobHeader:
 
     @classmethod
     def build(cls, data):
-        blob_hdr = fileformat_pb2.BlobHeader()
+        blob_hdr = ff.BlobHeader()
         blob_hdr.ParseFromString(data)
         
         opt_data = blob_hdr.indexdata if blob_hdr.HasField('indexdata') else None
@@ -543,32 +546,6 @@ def testing():
 
     for p in primitives:
         print(p.show(0))
-       
+
+# End of osm_pbf.py
 #===============================================================================
-# main
-#===============================================================================
-
-if __name__ == '__main__':
-    # Check cmd line args
-    if len(sys.argv) < 2:
-        print(f'usage: {sys.argv[0]} <filepath>')
-        exit(-1)
-
-    filepath = sys.argv[1]
-
-    dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f'Start build: {dt}')
-    
-    pbf = OsmPbfFile.build(filepath)
-
-    dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f'End build: {dt}')
-
-    print(pbf.show())
-    
-    dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f'End show: {dt}')
-    
-    # testing()
-
-    # level_1(filepath)
