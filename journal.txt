@@ -486,3 +486,13 @@ Layer compositing is operational.
 * 2020/08/17
 
 pbf/osm_pbf.py being modified to support import aliases.
+
+--------------------------------------------------------------------------------
+
+* 2020/08/21
+
+mapv.py
+
+Contains the main loop. It attempts to read DLG data on startup and fails.
+
+The pbf subdirectoryd

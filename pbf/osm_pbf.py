@@ -18,8 +18,8 @@ import zlib
 import struct
 from datetime import datetime
 
-import pbf.fileformat_pb2 as ff
-import pbf.osmformat_pb2 as of
+import fileformat_pb2 as ff
+import osmformat_pb2 as of
 # from pbf.fileformat_pb2 import fileformat_pb2
 # from pbf.osmformat_pb2 import osmformat_pb2
   
@@ -162,8 +162,9 @@ class OsmPbfPrimitiveGroup:
     All primitives in a group must be the same type, either nodes, ways,
     relation, or changesets.
     """
-    def __init__(self, primitives):
+    def __init__(self, elem, primitives):
         # Array of OSMPrimitives, all of the same type
+        self.elem = elem
         self.primitives = primitives
 
     def show(self, level):
@@ -178,7 +179,7 @@ class OsmPbfPrimitiveGroup:
         if len(pg.nodes) > 0:
             # Group of Nodes
             nodes = [OsmNode(x.id, None, x.lat, x.lon) for x in pg.nodes]
-            return cls(nodes)
+            return cls('node', nodes)
         
         elif pg.HasField('dense') and len(pg.dense.id) > 0:
             # Group of Nodes, delta-coded
@@ -186,12 +187,12 @@ class OsmPbfPrimitiveGroup:
                      for id, lat, lon in zip(undelta(pg.dense.id),
                                              undelta(pg.dense.lat),
                                              undelta(pg.dense.lon))]
-            return cls(nodes)
+            return cls('node', nodes)
 
         elif len(pg.ways) > 0:
             # Group of Ways
             ways = [OsmWay(x.id, None, x.refs) for x in pg.ways]
-            return cls(ways)
+            return cls('way', ways)
 
         elif len(pg.relations) > 0:
             # Group of relations, delta-coded
@@ -199,7 +200,7 @@ class OsmPbfPrimitiveGroup:
             for rel in pg.relations:
                 array = list(zip(rel.roles_sid, undelta(rel.memids), rel.types))
                 relations.append(OsmRelation(rel.id, None, array))
-            return cls(relations)
+            return cls('rel', relations)
 
 #-------------------------------------------------------------------------------
 # OsmPbfPrimitiveBlock
@@ -208,17 +209,18 @@ class OsmPbfPrimitiveGroup:
 class OsmPbfPrimitiveBlock:
     """This is what the docs call a file block, independently decodable."""
     def __init__(self, string_table, groups, granularity, lat_offset,
-                 lon_offset, date_granularity):
+                 lon_offset, date_granularity, elems):
         self.string_table = string_table
         self.groups = groups
         self.granularity = granularity
         self.lat_offset = lat_offset
         self.lon_offset = lon_offset
         self.date_granularity = date_granularity
+        self.elems = elems
 
     def show(self, level):
         s = ''
-        s += f'{indent*level}PrimitiveBlock\n'
+        s += f'{indent*level}PrimitiveBlock {self.elems}\n'
         s += f'{indent*(level+1)}len(string_table)={len(self.string_table)}\n'
         s += f'{indent*(level+1)}PrimitiveGroups\n'
 
@@ -238,6 +240,8 @@ class OsmPbfPrimitiveBlock:
         """Argument blob is an instance of OsmPbfBlobStruct where the type in the
         BlobHeader is OSMData.
         """
+        has_node = has_way = has_rel = False
+        
         prim_blk = of.PrimitiveBlock()
         prim_blk.ParseFromString(blob.get_data())
 
@@ -247,10 +251,20 @@ class OsmPbfPrimitiveBlock:
         groups = [OsmPbfPrimitiveGroup.build(pg)
                   for pg in prim_blk.primitivegroup]
 
+        # Mark the block according to the group contents
+        elems = set()
+        for g in groups:
+            if g.elem == 'node':
+                elems.add('node')
+            elif g.elem == 'way':
+                elems.add('way')
+            elif g.elem == 'rel':
+                elems.add('rel')
+
         # FIXME optional fields
         return cls(string_table, groups, prim_blk.granularity,
                    prim_blk.lat_offset, prim_blk.lon_offset,
-                   prim_blk.date_granularity)
+                   prim_blk.date_granularity, elems)
         
 #-------------------------------------------------------------------------------
 # OsmPbfHeaderBlock
@@ -469,17 +483,21 @@ class OsmPbfFile:
     First block: HeaderBlock.
     Subsequent blocks: PrimitiveBlocks.
     """
-    def __init__(self, header_block, primitive_blocks):
+    def __init__(self, header_block, primitive_blocks, first_way, first_rel):
         self.header_block = header_block
         self.primitive_blocks = primitive_blocks
+        self.first_way = first_way
+        self.first_rel = first_rel
 
     def show(self):
         s = ''
+        s += f'Total {len(self.primitive_blocks)} file-blocks' + \
+          f', first way={self.first_way}, first rel={self.first_rel}'
         s += self.header_block.show(0) + '\n'
-        for pg in self.primitive_blocks:
-            s += pg.show(0) + '\n'
+        for i, pg in enumerate(self.primitive_blocks):
+            s += f'{i:03} ' + pg.show(0) + '\n'
         return s
-        
+
     @classmethod
     def build(cls, filepath):
         g = blob_structs(filepath)
@@ -492,11 +510,17 @@ class OsmPbfFile:
         while True:
             # Following blocks are PrimitiveBlocks
             try:
-                array.append(OsmPbfPrimitiveBlock.build(next(g)))
+                b = OsmPbfPrimitiveBlock.build(next(g))
             except StopIteration:
                 break
+            # Save the indexes of the first blocks with ways and relations
+            if 'node' in b.elems and 'way' in b.elems:
+                first_way = len(array)
+            if 'way' in b.elems and 'rel' in b.elems:
+                first_rel = len(array)
+            array.append(b)
 
-        return cls(hdr, array)
+        return cls(hdr, array, first_way, first_rel)
 
 #-------------------------------------------------------------------------------
 # Print out level 1 
