@@ -2,8 +2,8 @@
 
 class Model:
     
-    def __init__(self):
-        self.kind = None
+    def __init__(self, kind):
+        self.kind = kind
 
     # Methods implemented by derived classes
     def open(self, filepath):

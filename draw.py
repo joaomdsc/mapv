@@ -162,7 +162,11 @@ class DrawingArea(BufferedWindow):
             return im
 
         elif self.model.kind == 'Shapefile':
-            self.draw_shp_lines(d, self.model.files[0])
+            self.draw_shp_lines(d, self.model.first_file)
+            return im
+
+        elif self.model.kind == 'Osm':
+            self.draw_osm_lines(d, self.model.first_file)
             return im
 
         # Return the prepared image
@@ -354,6 +358,26 @@ class DrawingArea(BufferedWindow):
         for rec in shp.recs:
             d.line([(x_win(x), y_win(y)) for x, y in rec.points], fill='black')
         self.write_annotation(d, f'{len(shp.recs)} lines')
+
+    #---------------------------------------------------------------------------
+    # OpenStreetMap
+    #---------------------------------------------------------------------------
+
+    def draw_osm_lines(self, d, osm):
+        x_win, y_win = self.t
+
+        for w in osm.ways:
+            # w is an OsmWay, w.refs is an array of OsmNode references
+            points = []
+            for n in w.refs:
+                try:
+                    nd = osm.node_dict[n]
+                except KeyError as e:
+                    print(f'Node {n} not found')
+                points.append((x_win(nd.lon), y_win(nd.lat)))
+            d.line(points, fill='black')
+            # d.line([(x_win(x), y_win(y)) for n in w.refs], fill='black')
+        self.write_annotation(d, f'{len(osm.ways)} lines')
 
     #---------------------------------------------------------------------------
     # USGS Quads

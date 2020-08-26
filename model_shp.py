@@ -8,7 +8,8 @@ from shp.shp import build
 class Shapefile(Model):
 
     def __init__(self):
-        self.kind = 'Shapefile'
+        super().__init__('Shapefile')
+        # self.kind = 'Shapefile'
         self.files = None
         self.line = None
         self.area = None
@@ -18,6 +19,7 @@ class Shapefile(Model):
             self.files = []
         self.files.append(build(filepath))
 
+    @property
     def first_file(self):
         return self.files[0]
 
@@ -29,10 +31,6 @@ class Shapefile(Model):
             self.open(f)
 
     def bounding_box(self):
-        """Return this model's bounding box in model coordinates.
-
-        If severaL dlg files are open, we need to compute the union of all the
-        bounding boxes.
-        """
+        """Return this model's bounding box in model coordinates."""
         hdr = self.files[0].hdr
         return hdr.Ymin, hdr.Ymax, hdr.Xmin, hdr.Xmax

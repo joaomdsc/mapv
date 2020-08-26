@@ -21,7 +21,8 @@ class Dlg3LocalObject:
 class Dlg3Model(Model):
     
     def __init__(self):
-        self.kind = 'Dlg3'
+        super().__init__('Dlg3')
+        # self.kind = 'Dlg3'
         self.line = None
         self.area = None
 

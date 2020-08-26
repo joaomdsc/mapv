@@ -10,6 +10,7 @@ from model import Model
 from model_dlg3 import Dlg3Model
 from model_shp import Shapefile
 from model_usgs import UsgsModel
+from model_osm import Osm
 from panel import MainPanel
 from storage import mapname_filepaths, get_dir, set_dir
 from summary import SummaryDialog
@@ -93,6 +94,21 @@ class DlgFrame(wx.Frame):
             # FIXME
             if self.win.model is None or self.win.model.kind != 'Shapefile':
                 self.win.model = Shapefile()
+            self.win.model.open(os.path.join(dir, file))
+            self.win.update_view()
+        d.Destroy()
+
+    def on_open_osm(self, _):
+        wildcard = 'OSM Files (*.pbf)|*.pbf|All files (*.*)|*.*'
+        d = wx.FileDialog(self, message='Open an OSM file', defaultDir=get_dir(),
+                          defaultFile='', wildcard=wildcard, style=wx.FD_OPEN)
+        if d.ShowModal() == wx.ID_OK:
+            dir = d.GetDirectory()
+            set_dir(dir)
+            file = d.GetFilename()
+            # FIXME
+            if self.win.model is None or self.win.model.kind != 'Osm':
+                self.win.model = Osm()
             self.win.model.open(os.path.join(dir, file))
             self.win.update_view()
         d.Destroy()
@@ -224,6 +240,8 @@ class DlgFrame(wx.Frame):
 
         mi = fm.Append(wx.ID_ANY, '&Open shapefile', 'Open a shapefile')
         self.Bind(wx.EVT_MENU, self.on_open_route, mi)
+        mi = fm.Append(wx.ID_ANY, 'OpenStreetMap', 'OpenStreetMap')
+        self.Bind(wx.EVT_MENU, self.on_open_osm, mi)
         mi = fm.Append(wx.ID_ANY, '&Clear', 'Clear all files')
         self.Bind(wx.EVT_MENU, self.on_clear, mi)
         mi = fm.Append(wx.ID_ANY, 'USGS Quads', 'Show a map of the USGS quads')

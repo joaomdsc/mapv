@@ -30,7 +30,7 @@ sys.stdout = Unbuffered(sys.stdout)
 #-------------------------------------------------------------------------------
 
 # This directory holds 1846 different place names
-dlg_base_dir = r'C:\x\carto\data\dds.cr.usgs.gov\pub\data\DLG\100K'
+dlg_base_dir = r'C:\a\carto\data\dds.cr.usgs.gov\pub\data\DLG\100K'
 
 pattern = "^([a-z'-_.]+-[ew])_([A-Z]{2})$"
 

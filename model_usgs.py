@@ -9,7 +9,8 @@ import storage as st
 class UsgsModel(Model):
     
     def __init__(self):
-        self.kind = 'Usgs'
+        super().__init__('Usgs')
+        # self.kind = 'Usgs'
         self.names = {}
 
         # Get data = file summaries
