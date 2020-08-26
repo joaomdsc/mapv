@@ -6,11 +6,10 @@ contains a series of encoded PrimitiveGroups, with each PrimitiveGroup
 containing ~8k OSM entities in the default configuration. There is no tag
 hardcoding used; all keys and values are stored in full as opaque strings.
 
-On a first level, the file can be seen a series of Blob structures, with
-BlobHeader and Blob, and a mechanism for extracting a payload from the
-Blob. This level is described in fileformat.proto.
+On a first level, the file can be seen a series of Blob structures, see
+pbf_blobs.py. The second level, implemented here, handles the OSM payloads
+extracted from the blobs.
 
-On a second level, dealing with the payloads
 """
 import os
 import sys
@@ -18,26 +17,8 @@ import zlib
 import struct
 from datetime import datetime
 
-import fileformat_pb2 as ff
-import osmformat_pb2 as of
-# from pbf.fileformat_pb2 import fileformat_pb2
-# from pbf.osmformat_pb2 import osmformat_pb2
-  
-#-------------------------------------------------------------------------------
-# I want stdout to be unbuffered, always
-#-------------------------------------------------------------------------------
-
-class Unbuffered(object):
-    def __init__(self, stream):
-        self.stream = stream
-    def write(self, data):
-        self.stream.write(data)
-        self.stream.flush()
-    def __getattr__(self, attr):
-        return getattr(self.stream, attr)
-
-import sys
-sys.stdout = Unbuffered(sys.stdout)
+from .pbf_blobs import blob_structs
+from .osmformat_pb2 import HeaderBlock, PrimitiveBlock
 
 #-------------------------------------------------------------------------------
 # Globals
@@ -92,7 +73,7 @@ class OsmNode(OsmPrimitive):
         self.lat = lat
         self.lon = lon
 
-    def show(self, level):
+    def show(self, level=0):
         # Single-line print
         s = ''
         s += super().show('node', level)
@@ -162,13 +143,18 @@ class OsmPbfPrimitiveGroup:
     All primitives in a group must be the same type, either nodes, ways,
     relation, or changesets.
     """
-    def __init__(self, elem, primitives):
+    def __init__(self, elem, primitives, bbox=None):
         # Array of OSMPrimitives, all of the same type
         self.elem = elem
         self.primitives = primitives
+        self.bbox = bbox
 
     def show(self, level):
-        return '\n'.join([p.show(level) for p in self.primitives[:10]])
+        # Dictionary of nodes, arrays of ways and relations
+        prims = list(self.primitives.values())[:10] if self.elem == 'node' \
+            else self.primitives[:10]
+
+        return '\n'.join([p.show(level) for p in prims])
 
     @classmethod
     def build(cls, pg):
@@ -176,22 +162,37 @@ class OsmPbfPrimitiveGroup:
 
         The docs say "All primitives in a group must be the same type".
         """
-        if len(pg.nodes) > 0:
-            # Group of Nodes
-            nodes = [OsmNode(x.id, None, x.lat, x.lon) for x in pg.nodes]
-            return cls('node', nodes)
-        
-        elif pg.HasField('dense') and len(pg.dense.id) > 0:
-            # Group of Nodes, delta-coded
-            nodes = [OsmNode(id, None, lat, lon)
-                     for id, lat, lon in zip(undelta(pg.dense.id),
-                                             undelta(pg.dense.lat),
-                                             undelta(pg.dense.lon))]
-            return cls('node', nodes)
+        if len(pg.nodes) > 0 or pg.HasField('dense') and len(pg.dense.id) > 0:
+            # Group of nodes            
+            if len(pg.nodes) > 0:
+                # Normal
+                nodes = {x.id: OsmNode(x.id, None, x.lat, x.lon) for x in pg.nodes}
+            else:
+                # Delta-coded
+                nodes = {id: OsmNode(id, None, lat, lon)
+                         for id, lat, lon in zip(undelta(pg.dense.id),
+                                                 undelta(pg.dense.lat),
+                                                 undelta(pg.dense.lon))}
+            # Bounding box
+            lat_min, lat_max, lon_min, lon_max = 9_999_999_999, \
+                -9_999_999_999, 9_999_999_999, -9_999_999_999
+            for n in nodes.values():
+                if n.lat < lat_min:
+                    lat_min = n.lat
+                if n.lat > lat_max:
+                    lat_max = n.lat
+                if n.lon < lon_min:
+                    lon_min = n.lon
+                if n.lon > lon_max:
+                    lon_max = n.lon
+            bbox = lat_min, lat_max, lon_min, lon_max
+                    
+            return cls('node', nodes, bbox)
 
         elif len(pg.ways) > 0:
-            # Group of Ways
-            ways = [OsmWay(x.id, None, x.refs) for x in pg.ways]
+            # Group of ways
+            # FIXME undelta code the refs here
+            ways = [OsmWay(x.id, None, undelta(x.refs)) for x in pg.ways]
             return cls('way', ways)
 
         elif len(pg.relations) > 0:
@@ -242,7 +243,7 @@ class OsmPbfPrimitiveBlock:
         """
         has_node = has_way = has_rel = False
         
-        prim_blk = of.PrimitiveBlock()
+        prim_blk = PrimitiveBlock()
         prim_blk.ParseFromString(blob.get_data())
 
         # Extract the string table and factory-build instance of primitive groups
@@ -315,7 +316,7 @@ class OsmPbfHeaderBlock:
         """Argument blob is an instance of OsmPbfBlobStruct where the type in the
         BlobHeader is OSMHeader.
         """
-        hdr_blk = of.HeaderBlock()
+        hdr_blk = HeaderBlock()
         hdr_blk.ParseFromString(blob.get_data())
 
         if hdr_blk.HasField('bbox'):
@@ -338,141 +339,7 @@ class OsmPbfHeaderBlock:
         return cls(opt_bbox, hdr_blk.required_features,
                hdr_blk.optional_features, opt_writing_program, opt_source,
                opt_osmo_timestamp, opt_osmo_seq_number, opt_osmo_base_url)
- 
-#-------------------------------------------------------------------------------
-# OsmPbfBlob
-#-------------------------------------------------------------------------------
-
-class OsmPbfBlob:
-    """Format described in fileformat.proto"""
-    def __init__(self, raw, raw_size, zlib_data, lzma_data):
-        self.raw = raw
-        self.raw_size = raw_size
-        self.zlib_data = zlib_data
-        self.lzma_data = lzma_data
-
-    def show(self, level):
-        s = ''
-        s += f'{indent*level}Blob'
-        # Note the initial '\n' in the strings below
-        if self.raw is not None:
-            s += f'\n{indent*(level+1)}len(raw)={len(self.raw)}'
-        if self.raw_size is not None:
-            s += f'\n{indent*(level+1)}raw_size={self.raw_size}'
-        if self.zlib_data is not None:
-            s += f'\n{indent*(level+1)}len(zlib_data)={len(self.zlib_data)}'
-        if self.lzma_data is not None:
-            s += f'\n{indent*(level+1)}len(lzma_data)={len(self.lzma_data)}'
-        # The returned string must never end in a newline
-        return s
-
-    @classmethod
-    def build(cls, data):
-        blob = ff.Blob()
-        blob.ParseFromString(data)
-
-        opt_raw = blob.raw if blob.HasField('raw') else None
-        opt_raw_size = blob.raw_size if blob.HasField('raw_size') else None
-        opt_zlib_data = blob.zlib_data if blob.HasField('zlib_data') else None
-        opt_lzma_data = blob.lzma_data if blob.HasField('lzma_data') else None
-
-        return cls(opt_raw, opt_raw_size, opt_zlib_data, opt_lzma_data)
- 
-#-------------------------------------------------------------------------------
-# OsmPbfBlobHeader
-#-------------------------------------------------------------------------------
-
-class OsmPbfBlobHeader:
-    """Format described in fileformat.proto"""
-    def __init__(self, type_, indexdata, datasize):
-        self.type_ = type_
-        self.indexdata = indexdata
-        self.datasize = datasize
-
-    def show(self, level):
-        s = ''
-        s += f'{indent*level}BlobHeader\n'
-        s += f'{indent*(level+1)}type={self.type_}'
-        if self.indexdata is not None:
-            # Note the initial '\n' in the string below
-            s += f'\n{indent*(level+1)}len(indexdata)={len(self.indexdata)}'
-        s += f'\n{indent*(level+1)}datasize={self.datasize}'
-        return s
-
-    @classmethod
-    def build(cls, data):
-        blob_hdr = ff.BlobHeader()
-        blob_hdr.ParseFromString(data)
-        
-        opt_data = blob_hdr.indexdata if blob_hdr.HasField('indexdata') else None
-        
-        return cls(blob_hdr.type, opt_data, blob_hdr.datasize)
-
-#-------------------------------------------------------------------------------
-# OsmPbfBlobStruct
-#-------------------------------------------------------------------------------
-
-class OsmPbfBlobStruct:
-    """Format described in fileformat.proto (sortof).
-
-    A file contains a sequence of fileblock headers, each prefixed by their
-    length in network byte order, followed by a data block containing the
-    actual data.
-    """
-    def __init__(self, blob_hdr_len, blob_hdr, blob):
-        self.blob_hdr_len = blob_hdr_len
-        self.blob_hdr = blob_hdr
-        self.blob = blob
-
-    def get_data(self):
-        return zlib.decompress(self.blob.zlib_data)
-
-    def show(self, level):
-        s = ''
-        s += f'Blob structure\n'
-        s += f'{indent}len(BlobHeader)={self.blob_hdr_len}\n'
-        s += self.blob_hdr.show(level+1) + '\n'
-        s += self.blob.show(level+1)
-        return s
-
-#-------------------------------------------------------------------------------
-# blob_structs generator
-#-------------------------------------------------------------------------------
-
-def blob_structs(filepath):
-    """Blob structures from an OSM .pbf file as OsmPbfBlobStruct instances.
-
-    An OSM .pbf file is a series of blob structures. Each blob structure (or
-    FileBlock) has three parts:
-
-    - int4: length of the BlobHeader message in network byte order
-    - serialized BlobHeader message
-    - serialized Blob message (size is given in the header)
-
-    Blob structures have variable length, as both the BlobHeader and the Blob
-    itself have variable lenghts (Blob length is given inside the BlobHeader).
-
-    See https://wiki.openstreetmap.org/wiki/PBF_Format
-
-    """
-    with open(filepath, 'rb') as f:
-        data = f.read()
-
-    while data != b'':
-        # int4: length of the BlobHeader message in network byte order
-        blob_hdr_len = int_big_end(data[:4])
-        data = data[4:]
-
-        # BlobHeader message
-        blob_header = OsmPbfBlobHeader.build(data[:blob_hdr_len])
-        data = data[blob_hdr_len:]
-
-        # Parse the blob itself
-        blob = OsmPbfBlob.build(data[:blob_header.datasize])
-        data = data[blob_header.datasize:]
-
-        yield OsmPbfBlobStruct(blob_hdr_len, blob_header, blob)
-    
+     
 #-------------------------------------------------------------------------------
 # OsmPbfFile
 #-------------------------------------------------------------------------------
@@ -482,17 +349,26 @@ class OsmPbfFile:
 
     First block: HeaderBlock.
     Subsequent blocks: PrimitiveBlocks.
+
+    This implementation mirrors the structure of the .pbf file. As such, it is
+    a good starting point to learn about the file contents, but it may not be
+    the best solution for subsequently using the data. Directly accessing
+    arrays of nodes, ways, relations could be better, we start by implementing
+    generators for those.
+
     """
-    def __init__(self, header_block, primitive_blocks, first_way, first_rel):
+    def __init__(self, header_block, primitive_blocks, first_way, first_rel,
+                 node_dict):
         self.header_block = header_block
         self.primitive_blocks = primitive_blocks
         self.first_way = first_way
         self.first_rel = first_rel
+        self.node_dict = node_dict
 
     def show(self):
         s = ''
         s += f'Total {len(self.primitive_blocks)} file-blocks' + \
-          f', first way={self.first_way}, first rel={self.first_rel}'
+          f', first way={self.first_way}, first rel={self.first_rel}\n'
         s += self.header_block.show(0) + '\n'
         for i, pg in enumerate(self.primitive_blocks):
             s += f'{i:03} ' + pg.show(0) + '\n'
@@ -507,69 +383,64 @@ class OsmPbfFile:
 
         # FIXME can I do a list comprehension skipping the first element ? 
         array = []
+        d = {}
         while True:
             # Following blocks are PrimitiveBlocks
             try:
                 b = OsmPbfPrimitiveBlock.build(next(g))
             except StopIteration:
                 break
+
+            # Accumulate node dictionaries
+            if 'node' in b.elems:
+                grp = b.groups[0]
+                # g.primitives is a dictionary of nodes
+                d.update(grp.primitives)
+            
             # Save the indexes of the first blocks with ways and relations
             if 'node' in b.elems and 'way' in b.elems:
                 first_way = len(array)
             if 'way' in b.elems and 'rel' in b.elems:
                 first_rel = len(array)
+
             array.append(b)
 
-        return cls(hdr, array, first_way, first_rel)
+        return cls(hdr, array, first_way, first_rel, d)
 
-#-------------------------------------------------------------------------------
-# Print out level 1 
-#-------------------------------------------------------------------------------
+    @staticmethod
+    def bbox_union(b1, b2):
+        min_lat = b1[0] if b1[0] < b2[0] else b2[0]
+        max_lat = b1[1] if b1[1] > b2[1] else b2[1]
+        min_long = b1[2] if b1[2] < b2[2] else b2[2]
+        max_long = b1[3] if b1[3] > b2[3] else b2[3]
+        return min_lat, max_lat, min_long, max_long
 
-def level_1(filepath):
-    g = blob_structs(filepath)
+    @property
+    def bbox(self):
+        """Bounding box of this file's nodes."""
+        # FIXME should be the bounding box of the ways
+        # Initialize min,max bbox
+        bbox0 = 9_999_999_999, -9_999_999_999, 9_999_999_999, -9_999_999_999
+        for b in self.primitive_blocks:
+            for g in b.groups:
+                if g.elem == 'node':
+                    bbox0 = OsmPbfFile.bbox_union(bbox0, g.bbox)
+        return bbox0
 
-    # Header blob
-    hdr_blob = next(g)
-    print(f'[000] {hdr_blob.show(0)}')
-    
-    i = 1
-    while True:
-        data_blob = next(g)
-        print(f'[{i:03}] {data_blob.show(0)}')
-        i += 1
+    @property
+    def ways(self):
+        arr = []
+        
+        # First block is special
+        g = self.primitive_blocks[self.first_way].groups[1]
+        arr.extend(g.primitives)
 
-#-------------------------------------------------------------------------------
-# Testing
-#-------------------------------------------------------------------------------
+        for b in self.primitive_blocks[self.first_way+1:self.first_rel]:
+            arr.extend(b.groups[0].primitives)
 
-def testing():
-    n1 = OsmNode(1, None, 23, 56)
-    n2 = OsmNode(2, None, 123, 14)
-    w1 = OsmWay(1, None, [1, 2])
-    w2 = OsmWay(2, None, [9, 4, 7])
-    w3 = OsmWay(3, None, [5, 8, 1, 54, 12])
-    array = [
-        ('house', 0, 'NODE'),
-        ('highway', 0, 'WAY'),
-        ('xxx', 0, 'RELATION'),
-    ]
-    r1 = OsmRelation(1, None, array)
-    r2 = OsmRelation(2, None, array)
-    r3 = OsmRelation(3, None, array)
-
-    primitives = []
-    primitives.append(w1)
-    primitives.append(r2)
-    primitives.append(n1)
-    primitives.append(w2)
-    primitives.append(r1)
-    primitives.append(n2)
-    primitives.append(w3)
-    primitives.append(r3)
-
-    for p in primitives:
-        print(p.show(0))
+        # FIXME what a drawing model needs is an array of points, maybe this
+        # could simply generate an array of (lon, lat)
+        return arr
 
 # End of osm_pbf.py
 #===============================================================================
